@@ -11,62 +11,47 @@
         font-family: 'Orbitron', sans-serif; overflow: hidden; user-select: none;
     }
     #game-container {
-        position: relative; width: 800px; height: 440px; margin: 50px auto;
-        box-shadow: 0 0 30px rgba(0, 255, 255, 0.3); border: 2px solid #00ffff44;
+        position: relative; width: 800px; height: 440px; margin: 40px auto;
+        box-shadow: 0 0 30px var(--theme-glow, rgba(0, 255, 255, 0.3));
+        border: 2px solid var(--theme-border, #00ffff55);
         border-radius: 8px; overflow: hidden;
     }
     canvas { display: block; width: 100%; height: 100%; background: #050614; }
     #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
     
     .back-arrow {
-        position: absolute; top: 15px; left: 15px; color: #0ff;
-        transition: transform 0.2s, filter 0.2s, color 0.2s; z-index: 100; 
-        text-decoration: none; display: flex; align-items: center; justify-content: center;
-        filter: drop-shadow(0 0 5px rgba(0, 255, 255, 0.5)); pointer-events: auto;
+        position: absolute; top: 15px; left: 15px; color: var(--theme-color, #0ff);
+        transition: 0.2s; z-index: 100; text-decoration: none;
+        display: flex; align-items: center; justify-content: center;
+        pointer-events: auto;
     }
-    .back-arrow:hover { 
-        transform: scale(1.15) translateX(-2px); color: #f0f; 
-        filter: drop-shadow(0 0 10px #f0f); 
-    }
+    .back-arrow:hover { transform: scale(1.15) translateX(-2px); }
 
-    #progress-container {
-        position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
-        width: 360px; text-align: center;
+    .hud {
+        position: absolute; top: 12px; font-size: 16px;
+        color: var(--theme-color, #0ff); text-shadow: 0 0 8px currentColor;
     }
-    #progress-bar-bg {
-        width: 100%; height: 10px; background: rgba(0, 255, 255, 0.15);
-        border: 2px solid #0ff; border-radius: 6px; overflow: hidden;
-        box-shadow: 0 0 10px rgba(0, 255, 255, 0.4); margin-top: 6px;
-    }
-    #progress-bar-fill {
-        height: 100%; width: 0%; background: #0ff; 
-        box-shadow: 0 0 12px #0ff;
-    }
-    #progress-text { font-size: 18px; color: #0ff; text-shadow: 0 0 8px #0ff; letter-spacing: 2px; }
-    
-    .hud { position: absolute; padding: 15px; font-size: 16px; text-shadow: 0 0 8px #0ff; color: #0ff; }
-    #best { top: 5px; right: 10px; }
-    
+    #score-box { left: 65px; }
+    #best-box { right: 20px; }
+
     .btn {
         position: absolute; padding: 8px 18px; font-family: 'Orbitron', sans-serif;
-        background: #090e17; border: 2px solid #0ff; color: #0ff; font-size: 14px;
-        cursor: pointer; pointer-events: auto; text-shadow: 0 0 5px #0ff;
-        box-shadow: 0 0 10px rgba(0,255,255,0.3); border-radius: 5px; transition: 0.2s;
+        background: #090e17; border: 2px solid var(--theme-color, #0ff);
+        color: var(--theme-color, #0ff); font-size: 13px; cursor: pointer;
+        pointer-events: auto; border-radius: 5px; transition: 0.2s;
     }
-    .btn:hover { background: #0ff; color: #000; box-shadow: 0 0 20px #0ff; }
+    .btn:hover { background: var(--theme-color, #0ff); color: #000; }
     #pauseBtn { bottom: 15px; right: 15px; }
-    
+    #resetBtn { bottom: 15px; right: 110px; }
+
     #message-overlay {
         position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-        display: flex; justify-content: center; align-items: center; flex-direction: column;
-        background: rgba(0, 0, 0, 0.75); display: none; pointer-events: none; z-index: 10;
-        gap: 15px;
+        display: none; justify-content: center; align-items: center;
+        flex-direction: column; background: rgba(0, 0, 0, 0.78);
+        gap: 15px; pointer-events: none; z-index: 10;
     }
-    #message-text { font-size: 40px; color: #f0f; text-shadow: 0 0 20px #f0f; margin-bottom: 10px; }
-    .msg-btn { position: relative; pointer-events: auto; font-size: 18px; padding: 12px 30px; }
-    
-    #hubBtn { border-color: #f0f; color: #f0f; text-shadow: 0 0 5px #f0f; box-shadow: 0 0 10px rgba(255,0,255,0.3); }
-    #hubBtn:hover { background: #f0f; color: #000; box-shadow: 0 0 20px #f0f; }
+    #message-text { font-size: 38px; color: #f0f; text-shadow: 0 0 20px #f0f; margin-bottom: 5px; }
+    .msg-btn { position: relative; pointer-events: auto; font-size: 16px; padding: 10px 24px; }
 </style>
 </head>
 <body>
@@ -76,23 +61,22 @@
     
     <div id="ui-layer">
         <a href="index.html" class="back-arrow" title="Back to Hub">
-            <svg viewBox="0 0 24 24" width="30" height="30" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <svg viewBox="0 0 24 24" width="28" height="28" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="19" y1="12" x2="5" y2="12"></line>
                 <polyline points="12 19 5 12 12 5"></polyline>
             </svg>
         </a>
 
-        <div id="progress-container">
-            <div id="progress-text">0%</div>
-            <div id="progress-bar-bg"><div id="progress-bar-fill"></div></div>
-        </div>
-        <div id="best" class="hud">BEST: 0%</div>
-        <button id="pauseBtn" class="btn">PAUSE</button>
+        <div id="score-box" class="hud">SCORE: <span id="scoreVal">0</span></div>
+        <div id="best-box" class="hud">BEST: <span id="bestVal">0</span></div>
         
+        <button id="resetBtn" class="btn">RESET</button>
+        <button id="pauseBtn" class="btn">PAUSE</button>
+
         <div id="message-overlay">
             <div id="message-text">GAME OVER</div>
             <button id="overlayActionBtn" class="btn msg-btn">TRY AGAIN</button>
-            <button id="hubBtn" class="btn msg-btn" onclick="window.location.href='index.html'">BACK TO HUB</button>
+            <button class="btn msg-btn" onclick="window.location.href='index.html'">BACK TO HUB</button>
         </div>
     </div>
 </div>
@@ -103,10 +87,10 @@
 <script>
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-const uiProgressText = document.getElementById('progress-text');
-const uiProgressBar = document.getElementById('progress-bar-fill');
-const uiBest = document.getElementById('best');
+const scoreVal = document.getElementById('scoreVal');
+const bestVal = document.getElementById('bestVal');
 const pauseBtn = document.getElementById('pauseBtn');
+const resetBtn = document.getElementById('resetBtn');
 const overlayActionBtn = document.getElementById('overlayActionBtn');
 const msgOverlay = document.getElementById('message-overlay');
 const msgText = document.getElementById('message-text');
@@ -114,195 +98,26 @@ const msgText = document.getElementById('message-text');
 const bgMusic = document.getElementById('sfx-music');
 const hitSound = document.getElementById('sfx-collision');
 
-let gameState = 'START'; 
-let bestProgress = localStorage.getItem('objectRunBest') || 0;
-uiBest.innerText = `BEST: ${bestProgress}%`;
+let gameState = 'START';
+let bestScore = parseInt(localStorage.getItem('objectRunHighScore') || 0);
+bestVal.innerText = bestScore;
 
 const TILE_SIZE = 40;
-const ROWS = 11;
 
-/*
-  Pattern Chunk Definitions:
-  Each chunk is exactly 11 rows high and fixed width.
-  '#' = solid block
-  '^' = spike on floor
-  'v' = ceiling spike / underneath floating platform
-  '.' = air
-*/
-const CHUNKS = {
-    // 0: Safe buffer zone (6 tiles)
-    safeBuffer: [
-        "......",
-        "......",
-        "......",
-        "......",
-        "......",
-        "......",
-        "......",
-        "......",
-        "......",
-        "......",
-        "######"
-    ],
-    // 1: Easy single spike
-    singleSpike: [
-        "........",
-        "........",
-        "........",
-        "........",
-        "........",
-        "........",
-        "........",
-        "........",
-        "........",
-        "..^.....",
-        "########"
-    ],
-    // 2: Low 1-block Step-Up ramp with safe landing
-    stepRamp: [
-        "..........",
-        "..........",
-        "..........",
-        "..........",
-        "..........",
-        "..........",
-        "..........",
-        "..........",
-        "....##....",
-        "..#.##....",
-        "##########"
-    ],
-    // 3: Rhythm double spike
-    doubleSpike: [
-        "..........",
-        "..........",
-        "..........",
-        "..........",
-        "..........",
-        "..........",
-        "..........",
-        "..........",
-        "..........",
-        "..^^......",
-        "##########"
-    ],
-    // 4: Low floating platform with spike pit underneath (1 block jump up)
-    floatingPlatformPit: [
-        "..............",
-        "..............",
-        "..............",
-        "..............",
-        "..............",
-        "..............",
-        "..............",
-        "....####......",
-        "....vvvv......",
-        "..^^^^^^^^....",
-        "##############"
-    ],
-    // 5: Staircase ascent (steps up 1-tile at a time with guaranteed landing)
-    staircase: [
-        "................",
-        "................",
-        "................",
-        "................",
-        "................",
-        "................",
-        "........##......",
-        "......####......",
-        "....######......",
-        "..^.######....^.",
-        "################"
-    ],
-    // 6: Hard rhythm combo: landing block directly followed by double spikes
-    spikeBoxCombo: [
-        "................",
-        "................",
-        "................",
-        "................",
-        "................",
-        "................",
-        "................",
-        "................",
-        "....##..........",
-        "..^.##..^^......",
-        "################"
-    ],
-    // 7: High-intensity double platform hop
-    doublePlatformHop: [
-        "....................",
-        "....................",
-        "....................",
-        "....................",
-        "....................",
-        "....................",
-        "........###.........",
-        "....###.vvv.........",
-        "....vvv.###.........",
-        "..^^^^^^^^^^^.......",
-        "####################"
-    ]
-};
-
-// Build the handcrafted progressive level using patterns
-function buildLevelSequence() {
-    const sequence = [];
-
-    // START (Safe initial runway ~5% progress)
-    sequence.push(CHUNKS.safeBuffer, CHUNKS.safeBuffer, CHUNKS.safeBuffer);
-
-    // TIER 1: EARLY (0% - 30%) - Foundations & single mechanics
-    sequence.push(
-        CHUNKS.singleSpike,
-        CHUNKS.safeBuffer,
-        CHUNKS.stepRamp,
-        CHUNKS.safeBuffer,
-        CHUNKS.singleSpike,
-        CHUNKS.doubleSpike,
-        CHUNKS.safeBuffer
-    );
-
-    // TIER 2: MID (30% - 70%) - Floating blocks over spikes & steps
-    sequence.push(
-        CHUNKS.floatingPlatformPit,
-        CHUNKS.safeBuffer,
-        CHUNKS.doubleSpike,
-        CHUNKS.stepRamp,
-        CHUNKS.safeBuffer,
-        CHUNKS.staircase,
-        CHUNKS.safeBuffer,
-        CHUNKS.floatingPlatformPit,
-        CHUNKS.spikeBoxCombo,
-        CHUNKS.safeBuffer
-    );
-
-    // TIER 3: LATE (70% - 95%) - High pacing & alternating challenges
-    sequence.push(
-        CHUNKS.doublePlatformHop,
-        CHUNKS.safeBuffer,
-        CHUNKS.spikeBoxCombo,
-        CHUNKS.staircase,
-        CHUNKS.floatingPlatformPit,
-        CHUNKS.doublePlatformHop,
-        CHUNKS.spikeBoxCombo,
-        CHUNKS.doubleSpike
-    );
-
-    // END RUN (95% - 100%) - Finish runway
-    sequence.push(CHUNKS.safeBuffer, CHUNKS.safeBuffer, CHUNKS.safeBuffer);
-
-    // Assemble unified grid
-    const fullGrid = Array(ROWS).fill("");
-    for (const chunk of sequence) {
-        for (let r = 0; r < ROWS; r++) {
-            fullGrid[r] += chunk[r];
-        }
-    }
-    return fullGrid;
-}
-
-const mapGrid = buildLevelSequence();
-const levelWidth = mapGrid[0].length * TILE_SIZE;
+// The Balanced Handcrafted Map
+const mapGrid = [
+    "........................................................................................................................................................................................................................................................................................................................................................................................................................",
+    "........................................................................................................................................................................................................................................................................................................................................................................................................................",
+    "........................................................................................................................................................................................................................................................................................................................................................................................................................",
+    "........................................................................................................................................................................................................................................................................................................................................................................................................................",
+    "........................................................................................................................................................................................................................................................................................................................................................................................................................",
+    "........................................................................................................................................................................................................................................................................................................................................................................................................................",
+    "...........................................................................................................................####..........................................................................####...................................................................####................................................................................................................................",
+    "........................................................................................####...............................vvvv............................................####............................vvvv............................................####.....................vvvv................................................................................................................................",
+    "........................................................................................vvvv...............................................................................vvvv.........................................................................vvvv................................................................................................................................................................",
+    "........................................^........##.........^........^^.........#.......^^^^.......^^.........#...##.......^....^^^^....#........^^.........##...###.......^....^^^^....#........^^..........^^^..........##...###.......^^^.......^....^^^^....##.........^^^..........^^^..........#...##...###.......^^^.......^^^^....##.........^^^.......................................................",
+    "########################################################################################################################################################################################################################################################################################################################################################################################################################"
+];
 
 let blocks = [];
 let spikes = [];
@@ -311,48 +126,38 @@ function parseLevel() {
     blocks = []; spikes = [];
     for(let r=0; r<mapGrid.length; r++) {
         for(let c=0; c<mapGrid[r].length; c++) {
-            let type = mapGrid[r][c];
+            let ch = mapGrid[r][c];
             let x = c * TILE_SIZE;
             let y = r * TILE_SIZE;
-            if(type === '#') blocks.push({x, y, w: TILE_SIZE, h: TILE_SIZE});
-            if(type === '^') spikes.push({x, y, type: 'up'});
-            if(type === 'v') spikes.push({x, y, type: 'down'});
+            if(ch === '#') blocks.push({x, y, w: TILE_SIZE, h: TILE_SIZE});
+            if(ch === '^') spikes.push({x, y, type: 'up'});
+            if(ch === 'v') spikes.push({x, y, type: 'down'});
         }
     }
 }
 parseLevel();
 
-// Jump physics tuned so maximum height is ~88px (2.2 tiles), horizontal reach is ~160px (4 tiles)
-let baseSpeed = 5.8;
-let player = { 
-    x: 120, y: 320, size: 28, 
-    vx: baseSpeed, vy: 0, 
-    gravity: 0.74, jumpForce: -12.3, 
-    angle: 0, onGround: false 
-};
-
+let baseSpeed = 5.6;
+let player = { x: 120, y: 320, size: 28, vx: baseSpeed, vy: 0, gravity: 0.74, jumpForce: -12.3, angle: 0, onGround: false };
 let cameraX = 0;
 let particles = [];
 let musicStarted = false;
+let currentScore = 0;
+let levelWidth = mapGrid[0].length * TILE_SIZE;
 
-// Ambient decorative background shapes
-const bgDiamonds = [];
-for (let i = 0; i < 25; i++) {
-    bgDiamonds.push({
-        x: Math.random() * 2000, y: Math.random() * 260 + 20,
-        size: Math.random() * 18 + 10, speed: Math.random() * 0.4 + 0.15, rot: Math.random() * Math.PI
-    });
+// Visual Theme System (score-based shifts)
+function getCurrentTheme() {
+    if (currentScore >= 100) return { main: '#ffd700', glow: 'rgba(255,215,0,0.5)', bg: '#1c1500' }; // Golden
+    if (currentScore >= 50)  return { main: '#ff4500', glow: 'rgba(255,69,0,0.5)', bg: '#1a0500' };  // Fiery
+    if (currentScore >= 20)  return { main: '#ba55d3', glow: 'rgba(186,85,211,0.5)', bg: '#120417' };// Purple
+    return { main: '#00ffff', glow: 'rgba(0,255,255,0.4)', bg: '#050614' };                           // Neon Blue
 }
 
 function resetGame() {
-    player = { 
-        x: 120, y: 320, size: 28, 
-        vx: baseSpeed, vy: 0, 
-        gravity: 0.74, jumpForce: -12.3, 
-        angle: 0, onGround: false 
-    };
+    player = { x: 120, y: 320, size: 28, vx: baseSpeed, vy: 0, gravity: 0.74, jumpForce: -12.3, angle: 0, onGround: false };
     cameraX = 0;
     particles = [];
+    currentScore = 0;
     gameState = 'PLAYING';
     msgOverlay.style.display = 'none';
     if(musicStarted) { bgMusic.play().catch(()=>{}); }
@@ -366,22 +171,14 @@ function die() {
     msgText.style.color = "#f0f";
     overlayActionBtn.innerText = "TRY AGAIN";
     msgOverlay.style.display = 'flex';
-    
+
     for(let i=0; i<20; i++) {
         particles.push({
             x: player.x + player.size/2, y: player.y + player.size/2,
             vx: (Math.random() - 0.5) * 10, vy: (Math.random() - 1) * 10,
-            size: Math.random() * 8 + 2, life: 1.0, color: i%2===0 ? '#0ff' : '#f0f'
+            size: Math.random() * 8 + 2, life: 1.0, color: i % 2 === 0 ? getCurrentTheme().main : '#f0f'
         });
     }
-}
-
-function win() {
-    gameState = 'WIN';
-    msgText.innerText = "MAP 1 COMPLETE!";
-    msgText.style.color = "#0ff";
-    overlayActionBtn.innerText = "PLAY AGAIN";
-    msgOverlay.style.display = 'flex';
 }
 
 function jump() {
@@ -404,20 +201,18 @@ window.addEventListener('mousedown', (e) => {
 
 function togglePause() {
     if(gameState === 'PLAYING') {
-        gameState = 'PAUSED'; 
-        bgMusic.pause();
-        msgText.innerText = "PAUSED"; 
-        msgText.style.color = "#fff";
+        gameState = 'PAUSED'; bgMusic.pause();
+        msgText.innerText = "PAUSED"; msgText.style.color = "#fff";
         overlayActionBtn.innerText = "RESUME";
         msgOverlay.style.display = 'flex';
     } else if(gameState === 'PAUSED') {
-        gameState = 'PLAYING'; 
-        bgMusic.play().catch(()=>{});
+        gameState = 'PLAYING'; bgMusic.play().catch(()=>{});
         msgOverlay.style.display = 'none';
     }
 }
 
 pauseBtn.addEventListener('click', togglePause);
+resetBtn.addEventListener('click', resetGame);
 overlayActionBtn.addEventListener('click', () => {
     if(gameState === 'PAUSED') togglePause();
     else resetGame();
@@ -426,14 +221,20 @@ overlayActionBtn.addEventListener('click', () => {
 function update() {
     if(gameState !== 'PLAYING') return;
 
-    // Gradual difficulty speed curve: speeds up slightly past 60%
-    const maxDist = levelWidth - 800;
-    const progress = Math.min(100, Math.max(0, Math.floor((player.x / maxDist) * 100)));
-    player.vx = baseSpeed + (progress > 60 ? (progress - 60) * 0.02 : 0);
+    // Score & Speed Scaling
+    currentScore = Math.floor((player.x - 120) / 75);
+    scoreVal.innerText = currentScore;
+    if(currentScore > bestScore) {
+        bestScore = currentScore;
+        localStorage.setItem('objectRunHighScore', bestScore);
+        bestVal.innerText = bestScore;
+    }
 
+    // Dynamic speed ramp
+    player.vx = baseSpeed + (currentScore * 0.015);
     player.vy += player.gravity;
-    
-    // Horizontal Movement & Collisions
+
+    // X Movement & Block Collision
     player.x += player.vx;
     for(let b of blocks) {
         if(player.x < b.x + b.w && player.x + player.size > b.x &&
@@ -442,7 +243,7 @@ function update() {
         }
     }
 
-    // Vertical Movement & Collisions
+    // Y Movement & Block Collision
     player.y += player.vy;
     player.onGround = false;
     for(let b of blocks) {
@@ -467,60 +268,35 @@ function update() {
         }
     }
 
-    // Airborne Rotation
+    // Rotation
     if(!player.onGround) player.angle += 0.12;
     else player.angle = Math.round(player.angle / (Math.PI/2)) * (Math.PI/2);
 
     cameraX = player.x - 180;
 
-    // Progress updates
-    uiProgressText.innerText = `${progress}%`;
-    uiProgressBar.style.width = `${progress}%`;
-    
-    if(progress > bestProgress) {
-        bestProgress = progress;
-        localStorage.setItem('objectRunBest', bestProgress);
-        uiBest.innerText = `BEST: ${bestProgress}%`;
+    // Level Loop / Completion
+    if(player.x >= levelWidth - 800) {
+        gameState = 'WIN';
+        msgText.innerText = "MAP 1 CLEAR!";
+        msgText.style.color = "#0ff";
+        overlayActionBtn.innerText = "PLAY AGAIN";
+        msgOverlay.style.display = 'flex';
     }
-    
-    if(progress >= 100) win();
 }
 
-function drawBackground() {
-    let grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-    grad.addColorStop(0, '#060717');
-    grad.addColorStop(0.6, '#110b27');
-    grad.addColorStop(1, '#051b2c');
-    ctx.fillStyle = grad;
+function draw() {
+    const theme = getCurrentTheme();
+    document.documentElement.style.setProperty('--theme-color', theme.main);
+    document.documentElement.style.setProperty('--theme-glow', theme.glow);
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Background
+    ctx.fillStyle = theme.bg;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Parallax Mountain Silhouettes
-    ctx.fillStyle = 'rgba(20, 20, 50, 0.4)';
-    ctx.beginPath();
-    ctx.moveTo(0, canvas.height);
-    for (let x = 0; x <= canvas.width + 100; x += 100) {
-        let peakY = 220 + Math.sin((x + cameraX * 0.2) * 0.006) * 45;
-        ctx.lineTo(x, peakY);
-    }
-    ctx.lineTo(canvas.width, canvas.height);
-    ctx.fill();
-
-    // Floating Ambient Diamonds
-    ctx.strokeStyle = 'rgba(0, 255, 255, 0.15)';
-    ctx.lineWidth = 1.5;
-    for (let d of bgDiamonds) {
-        let drawX = (d.x - cameraX * d.speed) % 900;
-        if (drawX < -50) drawX += 900;
-
-        ctx.save();
-        ctx.translate(drawX, d.y);
-        ctx.rotate(d.rot);
-        ctx.strokeRect(-d.size/2, -d.size/2, d.size, d.size);
-        ctx.restore();
-    }
-
-    // Grid Lines
-    ctx.strokeStyle = 'rgba(0, 255, 255, 0.06)';
+    // Grid
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
     ctx.lineWidth = 1;
     ctx.beginPath();
     let offsetX = cameraX % TILE_SIZE;
@@ -531,34 +307,28 @@ function drawBackground() {
         ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); 
     }
     ctx.stroke();
-}
-
-function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    drawBackground();
 
     ctx.save();
     ctx.translate(-cameraX, 0);
 
-    // Neon Blocks
-    ctx.shadowBlur = 12;
-    ctx.shadowColor = '#0ff';
-    ctx.strokeStyle = '#0ff';
+    // Blocks
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = theme.main;
+    ctx.strokeStyle = theme.main;
     ctx.fillStyle = '#060a12';
     ctx.lineWidth = 2;
     for(let b of blocks) {
-        if(b.x > cameraX - TILE_SIZE && b.x < cameraX + 800) {
+        if(b.x > cameraX - TILE_SIZE && b.x < cameraX + 850) {
             ctx.fillRect(b.x, b.y, b.w, b.h);
             ctx.strokeRect(b.x, b.y, b.w, b.h);
         }
     }
 
-    // Triangular Glowing Spikes
+    // Spikes
     ctx.shadowColor = '#f0f';
     ctx.fillStyle = '#f0f';
     for(let s of spikes) {
-        if(s.x > cameraX - TILE_SIZE && s.x < cameraX + 800) {
+        if(s.x > cameraX - TILE_SIZE && s.x < cameraX + 850) {
             ctx.beginPath();
             if(s.type === 'up') {
                 ctx.moveTo(s.x + TILE_SIZE/2, s.y + 4);
@@ -573,10 +343,10 @@ function draw() {
         }
     }
 
-    // Player Cube
+    // Player
     if(gameState !== 'GAMEOVER') {
-        ctx.shadowColor = '#0ff';
-        ctx.fillStyle = '#0ff';
+        ctx.shadowColor = theme.main;
+        ctx.fillStyle = theme.main;
         ctx.save();
         ctx.translate(player.x + player.size/2, player.y + player.size/2);
         ctx.rotate(player.angle);
@@ -586,9 +356,9 @@ function draw() {
         ctx.restore();
     }
 
-    // Scatter Particles
+    // Death particles
     if(gameState === 'GAMEOVER') {
-        ctx.shadowBlur = 8;
+        ctx.shadowBlur = 6;
         for(let p of particles) {
             if(p.life > 0) {
                 p.vy += 0.5; p.x += p.vx; p.y += p.vy; p.life -= 0.02;
@@ -602,12 +372,11 @@ function draw() {
 
     ctx.restore();
 
-    // Start Screen
     if(gameState === 'START') {
         ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(0,0,800,440);
-        ctx.fillStyle = '#0ff'; ctx.font = '22px Orbitron'; ctx.textAlign = 'center';
-        ctx.shadowBlur = 10; ctx.shadowColor = '#0ff';
-        ctx.fillText("CLICK OR PRESS SPACE TO RUN", 400, 220);
+        ctx.fillStyle = theme.main; ctx.font = '22px Orbitron'; ctx.textAlign = 'center';
+        ctx.shadowBlur = 10; ctx.shadowColor = theme.main;
+        ctx.fillText("PRESS SPACE OR CLICK TO JUMP", 400, 220);
         ctx.textAlign = 'left';
     }
 }
