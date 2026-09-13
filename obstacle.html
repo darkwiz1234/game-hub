@@ -18,7 +18,6 @@
     canvas { display: block; width: 100%; height: 100%; background: #050614; }
     #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
     
-    /* Top Left Back Arrow */
     .back-arrow {
         position: absolute; top: 15px; left: 15px; color: #0ff;
         transition: transform 0.2s, filter 0.2s, color 0.2s; z-index: 100; 
@@ -41,7 +40,7 @@
     }
     #progress-bar-fill {
         height: 100%; width: 0%; background: #0ff; 
-        box-shadow: 0 0 12px #0ff; transition: width 0.1s linear;
+        box-shadow: 0 0 12px #0ff;
     }
     #progress-text { font-size: 18px; color: #0ff; text-shadow: 0 0 8px #0ff; letter-spacing: 2px; }
     
@@ -76,7 +75,6 @@
     <canvas id="gameCanvas" width="800" height="440"></canvas>
     
     <div id="ui-layer">
-        <!-- Back Arrow -->
         <a href="index.html" class="back-arrow" title="Back to Hub">
             <svg viewBox="0 0 24 24" width="30" height="30" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="19" y1="12" x2="5" y2="12"></line>
@@ -120,24 +118,192 @@ let gameState = 'START';
 let bestProgress = localStorage.getItem('objectRunBest') || 0;
 uiBest.innerText = `BEST: ${bestProgress}%`;
 
-// 🗺️ MAP 1 - Geometry Dash Style Design
-// Completely handcrafted. Features rhythm jumps, floating staircases, and true spike pits.
-const mapGrid = [
-    "..................................................................................................................................................................................................................................................................................................................................................................................................................................................................",
-    "..................................................................................................................................................................................................................................................................................................................................................................................................................................................................",
-    "..................................................................................................................................................................................................................................................................................................................................................................................................................................................................",
-    "..................................................................................................................................................................................................................................................................................................................................................................................................................................................................",
-    "..................................................................................................................................................................................................................................................................................................................................................................................................................................................................",
-    ".......................................................................................................................................................######...................................######..######......................................................................######.......######.....................................................................................................................................................",
-    "..................................................................................................................................................................######...........................#####..................#####......................................................######..........................######..........######...................................................................................................................",
-    ".......................................................................######...................######...................................................................######.............................#####................................#####..............###....................###................######.............................................................###.......###..................................................................",
-    "..................................................................................................................................................................................................................................................................................................................................................................................................................................................................",
-    "..............................#.......##.......###....^.......^^.....^^^^^^.......^^..........^^^^^^....^....^^....#....^^^....#.......^..^..#...^^.....##......^^.......^^^^^^^^^^^^^^^^^^^^^^^^^^.........^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^..........^^...^^^...^^.....#...^^....^^^..^^...#...^^^..^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^..........^^^^^^..........^^^.......^^^....#....^^....##....^^^....##..................................",
-    "##################################################################################################################################################################################################################################################################################################################################################################################################################################################################"
-];
-
 const TILE_SIZE = 40;
-let levelWidth = mapGrid[0].length * TILE_SIZE;
+const ROWS = 11;
+
+/*
+  Pattern Chunk Definitions:
+  Each chunk is exactly 11 rows high and fixed width.
+  '#' = solid block
+  '^' = spike on floor
+  'v' = ceiling spike / underneath floating platform
+  '.' = air
+*/
+const CHUNKS = {
+    // 0: Safe buffer zone (6 tiles)
+    safeBuffer: [
+        "......",
+        "......",
+        "......",
+        "......",
+        "......",
+        "......",
+        "......",
+        "......",
+        "......",
+        "......",
+        "######"
+    ],
+    // 1: Easy single spike
+    singleSpike: [
+        "........",
+        "........",
+        "........",
+        "........",
+        "........",
+        "........",
+        "........",
+        "........",
+        "........",
+        "..^.....",
+        "########"
+    ],
+    // 2: Low 1-block Step-Up ramp with safe landing
+    stepRamp: [
+        "..........",
+        "..........",
+        "..........",
+        "..........",
+        "..........",
+        "..........",
+        "..........",
+        "..........",
+        "....##....",
+        "..#.##....",
+        "##########"
+    ],
+    // 3: Rhythm double spike
+    doubleSpike: [
+        "..........",
+        "..........",
+        "..........",
+        "..........",
+        "..........",
+        "..........",
+        "..........",
+        "..........",
+        "..........",
+        "..^^......",
+        "##########"
+    ],
+    // 4: Low floating platform with spike pit underneath (1 block jump up)
+    floatingPlatformPit: [
+        "..............",
+        "..............",
+        "..............",
+        "..............",
+        "..............",
+        "..............",
+        "..............",
+        "....####......",
+        "....vvvv......",
+        "..^^^^^^^^....",
+        "##############"
+    ],
+    // 5: Staircase ascent (steps up 1-tile at a time with guaranteed landing)
+    staircase: [
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "........##......",
+        "......####......",
+        "....######......",
+        "..^.######....^.",
+        "################"
+    ],
+    // 6: Hard rhythm combo: landing block directly followed by double spikes
+    spikeBoxCombo: [
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "................",
+        "....##..........",
+        "..^.##..^^......",
+        "################"
+    ],
+    // 7: High-intensity double platform hop
+    doublePlatformHop: [
+        "....................",
+        "....................",
+        "....................",
+        "....................",
+        "....................",
+        "....................",
+        "........###.........",
+        "....###.vvv.........",
+        "....vvv.###.........",
+        "..^^^^^^^^^^^.......",
+        "####################"
+    ]
+};
+
+// Build the handcrafted progressive level using patterns
+function buildLevelSequence() {
+    const sequence = [];
+
+    // START (Safe initial runway ~5% progress)
+    sequence.push(CHUNKS.safeBuffer, CHUNKS.safeBuffer, CHUNKS.safeBuffer);
+
+    // TIER 1: EARLY (0% - 30%) - Foundations & single mechanics
+    sequence.push(
+        CHUNKS.singleSpike,
+        CHUNKS.safeBuffer,
+        CHUNKS.stepRamp,
+        CHUNKS.safeBuffer,
+        CHUNKS.singleSpike,
+        CHUNKS.doubleSpike,
+        CHUNKS.safeBuffer
+    );
+
+    // TIER 2: MID (30% - 70%) - Floating blocks over spikes & steps
+    sequence.push(
+        CHUNKS.floatingPlatformPit,
+        CHUNKS.safeBuffer,
+        CHUNKS.doubleSpike,
+        CHUNKS.stepRamp,
+        CHUNKS.safeBuffer,
+        CHUNKS.staircase,
+        CHUNKS.safeBuffer,
+        CHUNKS.floatingPlatformPit,
+        CHUNKS.spikeBoxCombo,
+        CHUNKS.safeBuffer
+    );
+
+    // TIER 3: LATE (70% - 95%) - High pacing & alternating challenges
+    sequence.push(
+        CHUNKS.doublePlatformHop,
+        CHUNKS.safeBuffer,
+        CHUNKS.spikeBoxCombo,
+        CHUNKS.staircase,
+        CHUNKS.floatingPlatformPit,
+        CHUNKS.doublePlatformHop,
+        CHUNKS.spikeBoxCombo,
+        CHUNKS.doubleSpike
+    );
+
+    // END RUN (95% - 100%) - Finish runway
+    sequence.push(CHUNKS.safeBuffer, CHUNKS.safeBuffer, CHUNKS.safeBuffer);
+
+    // Assemble unified grid
+    const fullGrid = Array(ROWS).fill("");
+    for (const chunk of sequence) {
+        for (let r = 0; r < ROWS; r++) {
+            fullGrid[r] += chunk[r];
+        }
+    }
+    return fullGrid;
+}
+
+const mapGrid = buildLevelSequence();
+const levelWidth = mapGrid[0].length * TILE_SIZE;
+
 let blocks = [];
 let spikes = [];
 
@@ -156,13 +322,20 @@ function parseLevel() {
 }
 parseLevel();
 
-// Tightened platformer physics
-let player = { x: 120, y: 320, size: 28, vx: 5.8, vy: 0, gravity: 0.75, jumpForce: -12.5, angle: 0, onGround: false };
+// Jump physics tuned so maximum height is ~88px (2.2 tiles), horizontal reach is ~160px (4 tiles)
+let baseSpeed = 5.8;
+let player = { 
+    x: 120, y: 320, size: 28, 
+    vx: baseSpeed, vy: 0, 
+    gravity: 0.74, jumpForce: -12.3, 
+    angle: 0, onGround: false 
+};
+
 let cameraX = 0;
 let particles = [];
 let musicStarted = false;
 
-// Background Parallax Particles
+// Ambient decorative background shapes
 const bgDiamonds = [];
 for (let i = 0; i < 25; i++) {
     bgDiamonds.push({
@@ -172,7 +345,12 @@ for (let i = 0; i < 25; i++) {
 }
 
 function resetGame() {
-    player = { x: 120, y: 320, size: 28, vx: 5.8, vy: 0, gravity: 0.75, jumpForce: -12.5, angle: 0, onGround: false };
+    player = { 
+        x: 120, y: 320, size: 28, 
+        vx: baseSpeed, vy: 0, 
+        gravity: 0.74, jumpForce: -12.3, 
+        angle: 0, onGround: false 
+    };
     cameraX = 0;
     particles = [];
     gameState = 'PLAYING';
@@ -200,7 +378,7 @@ function die() {
 
 function win() {
     gameState = 'WIN';
-    msgText.innerText = "LEVEL COMPLETE!";
+    msgText.innerText = "MAP 1 COMPLETE!";
     msgText.style.color = "#0ff";
     overlayActionBtn.innerText = "PLAY AGAIN";
     msgOverlay.style.display = 'flex';
@@ -221,7 +399,6 @@ window.addEventListener('keydown', (e) => {
     if(e.code === 'Space' || e.code === 'ArrowUp') jump();
 });
 window.addEventListener('mousedown', (e) => {
-    // Only jump if clicking the canvas directly, not the UI buttons
     if(e.target.tagName === 'CANVAS') jump();
 });
 
@@ -241,21 +418,22 @@ function togglePause() {
 }
 
 pauseBtn.addEventListener('click', togglePause);
-
 overlayActionBtn.addEventListener('click', () => {
-    if(gameState === 'PAUSED') {
-        togglePause();
-    } else {
-        resetGame();
-    }
+    if(gameState === 'PAUSED') togglePause();
+    else resetGame();
 });
 
 function update() {
     if(gameState !== 'PLAYING') return;
 
+    // Gradual difficulty speed curve: speeds up slightly past 60%
+    const maxDist = levelWidth - 800;
+    const progress = Math.min(100, Math.max(0, Math.floor((player.x / maxDist) * 100)));
+    player.vx = baseSpeed + (progress > 60 ? (progress - 60) * 0.02 : 0);
+
     player.vy += player.gravity;
     
-    // X Movement & Collision
+    // Horizontal Movement & Collisions
     player.x += player.vx;
     for(let b of blocks) {
         if(player.x < b.x + b.w && player.x + player.size > b.x &&
@@ -264,17 +442,17 @@ function update() {
         }
     }
 
-    // Y Movement & Collision
+    // Vertical Movement & Collisions
     player.y += player.vy;
     player.onGround = false;
     for(let b of blocks) {
         if(player.x < b.x + b.w && player.x + player.size > b.x &&
            player.y < b.y + b.h && player.y + player.size > b.y) {
-            if(player.vy > 0) { // Landed on top of block
+            if(player.vy > 0) {
                 player.y = b.y - player.size;
                 player.vy = 0;
                 player.onGround = true;
-            } else if (player.vy < 0) { // Hit ceiling
+            } else if (player.vy < 0) {
                 die(); return;
             }
         }
@@ -289,16 +467,13 @@ function update() {
         }
     }
 
-    // Aerial Rotation
+    // Airborne Rotation
     if(!player.onGround) player.angle += 0.12;
     else player.angle = Math.round(player.angle / (Math.PI/2)) * (Math.PI/2);
 
     cameraX = player.x - 180;
 
     // Progress updates
-    let maxDist = levelWidth - 800;
-    let progress = Math.min(100, Math.max(0, Math.floor((player.x / maxDist) * 100)));
-    
     uiProgressText.innerText = `${progress}%`;
     uiProgressBar.style.width = `${progress}%`;
     
@@ -366,7 +541,7 @@ function draw() {
     ctx.save();
     ctx.translate(-cameraX, 0);
 
-    // Draw Blocks with Neon Glow
+    // Neon Blocks
     ctx.shadowBlur = 12;
     ctx.shadowColor = '#0ff';
     ctx.strokeStyle = '#0ff';
@@ -379,7 +554,7 @@ function draw() {
         }
     }
 
-    // Draw Spikes
+    // Triangular Glowing Spikes
     ctx.shadowColor = '#f0f';
     ctx.fillStyle = '#f0f';
     for(let s of spikes) {
@@ -398,7 +573,7 @@ function draw() {
         }
     }
 
-    // Draw Player
+    // Player Cube
     if(gameState !== 'GAMEOVER') {
         ctx.shadowColor = '#0ff';
         ctx.fillStyle = '#0ff';
@@ -411,7 +586,7 @@ function draw() {
         ctx.restore();
     }
 
-    // Death Particles
+    // Scatter Particles
     if(gameState === 'GAMEOVER') {
         ctx.shadowBlur = 8;
         for(let p of particles) {
@@ -427,7 +602,7 @@ function draw() {
 
     ctx.restore();
 
-    // Start Screen Notice
+    // Start Screen
     if(gameState === 'START') {
         ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(0,0,800,440);
         ctx.fillStyle = '#0ff'; ctx.font = '22px Orbitron'; ctx.textAlign = 'center';
