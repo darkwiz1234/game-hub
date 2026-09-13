@@ -13,31 +13,38 @@
     #game-container {
         position: relative; width: 800px; height: 440px; margin: 40px auto;
         box-shadow: 0 0 30px var(--theme-glow, rgba(0, 255, 255, 0.3));
-        border: 2px solid var(--theme-border, #00ffff55);
-        border-radius: 8px; overflow: hidden;
+        border: 2px solid var(--theme-color, #0ff); border-radius: 8px; overflow: hidden;
     }
     canvas { display: block; width: 100%; height: 100%; background: #050614; }
     #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
     
     .back-arrow {
         position: absolute; top: 15px; left: 15px; color: var(--theme-color, #0ff);
-        transition: 0.2s; z-index: 100; text-decoration: none;
-        display: flex; align-items: center; justify-content: center;
-        pointer-events: auto;
+        text-decoration: none; display: flex; align-items: center; justify-content: center;
+        pointer-events: auto; transition: 0.2s;
     }
     .back-arrow:hover { transform: scale(1.15) translateX(-2px); }
 
-    .hud {
-        position: absolute; top: 12px; font-size: 16px;
+    #progress-container {
+        position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
+        width: 360px; text-align: center;
+    }
+    #progress-bar-bg {
+        width: 100%; height: 10px; background: rgba(255, 255, 255, 0.15);
+        border: 2px solid var(--theme-color, #0ff); border-radius: 6px; overflow: hidden; margin-top: 6px;
+    }
+    #progress-bar-fill { height: 100%; width: 0%; background: var(--theme-color, #0ff); }
+    #progress-text { font-size: 18px; color: var(--theme-color, #0ff); text-shadow: 0 0 8px currentColor; }
+    
+    #best {
+        position: absolute; top: 15px; right: 20px; font-size: 16px;
         color: var(--theme-color, #0ff); text-shadow: 0 0 8px currentColor;
     }
-    #score-box { left: 65px; }
-    #best-box { right: 20px; }
 
     .btn {
         position: absolute; padding: 8px 18px; font-family: 'Orbitron', sans-serif;
         background: #090e17; border: 2px solid var(--theme-color, #0ff);
-        color: var(--theme-color, #0ff); font-size: 13px; cursor: pointer;
+        color: var(--theme-color, #0ff); font-size: 14px; cursor: pointer;
         pointer-events: auto; border-radius: 5px; transition: 0.2s;
     }
     .btn:hover { background: var(--theme-color, #0ff); color: #000; }
@@ -47,10 +54,9 @@
     #message-overlay {
         position: absolute; top: 0; left: 0; width: 100%; height: 100%;
         display: none; justify-content: center; align-items: center;
-        flex-direction: column; background: rgba(0, 0, 0, 0.78);
-        gap: 15px; pointer-events: none; z-index: 10;
+        flex-direction: column; background: rgba(0, 0, 0, 0.75); gap: 15px; z-index: 10;
     }
-    #message-text { font-size: 38px; color: #f0f; text-shadow: 0 0 20px #f0f; margin-bottom: 5px; }
+    #message-text { font-size: 40px; color: #f0f; text-shadow: 0 0 20px #f0f; margin-bottom: 5px; }
     .msg-btn { position: relative; pointer-events: auto; font-size: 16px; padding: 10px 24px; }
 </style>
 </head>
@@ -67,9 +73,12 @@
             </svg>
         </a>
 
-        <div id="score-box" class="hud">SCORE: <span id="scoreVal">0</span></div>
-        <div id="best-box" class="hud">BEST: <span id="bestVal">0</span></div>
-        
+        <div id="progress-container">
+            <div id="progress-text">0%</div>
+            <div id="progress-bar-bg"><div id="progress-bar-fill"></div></div>
+        </div>
+
+        <div id="best">BEST: 0%</div>
         <button id="resetBtn" class="btn">RESET</button>
         <button id="pauseBtn" class="btn">PAUSE</button>
 
@@ -87,77 +96,62 @@
 <script>
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
-const scoreVal = document.getElementById('scoreVal');
-const bestVal = document.getElementById('bestVal');
+const uiProgressText = document.getElementById('progress-text');
+const uiProgressBar = document.getElementById('progress-bar-fill');
+const uiBest = document.getElementById('best');
 const pauseBtn = document.getElementById('pauseBtn');
 const resetBtn = document.getElementById('resetBtn');
 const overlayActionBtn = document.getElementById('overlayActionBtn');
 const msgOverlay = document.getElementById('message-overlay');
 const msgText = document.getElementById('message-text');
-
 const bgMusic = document.getElementById('sfx-music');
 const hitSound = document.getElementById('sfx-collision');
 
 let gameState = 'START';
-let bestScore = parseInt(localStorage.getItem('objectRunHighScore') || 0);
-bestVal.innerText = bestScore;
+let bestProgress = localStorage.getItem('objectRunBest') || 0;
+uiBest.innerText = `BEST: ${bestProgress}%`;
 
 const TILE_SIZE = 40;
 
-// The Balanced Handcrafted Map
+// Base Handcrafted Map
 const mapGrid = [
-    "........................................................................................................................................................................................................................................................................................................................................................................................................................",
-    "........................................................................................................................................................................................................................................................................................................................................................................................................................",
-    "........................................................................................................................................................................................................................................................................................................................................................................................................................",
-    "........................................................................................................................................................................................................................................................................................................................................................................................................................",
-    "........................................................................................................................................................................................................................................................................................................................................................................................................................",
-    "........................................................................................................................................................................................................................................................................................................................................................................................................................",
-    "...........................................................................................................................####..........................................................................####...................................................................####................................................................................................................................",
-    "........................................................................................####...............................vvvv............................................####............................vvvv............................................####.....................vvvv................................................................................................................................",
-    "........................................................................................vvvv...............................................................................vvvv.........................................................................vvvv................................................................................................................................................................",
-    "........................................^........##.........^........^^.........#.......^^^^.......^^.........#...##.......^....^^^^....#........^^.........##...###.......^....^^^^....#........^^..........^^^..........##...###.......^^^.......^....^^^^....##.........^^^..........^^^..........#...##...###.......^^^.......^^^^....##.........^^^.......................................................",
-    "########################################################################################################################################################################################################################################################################################################################################################################################################################"
+    ".....................................................................................................................................................................................................................................................................................................................................................",
+    ".....................................................................................................................................................................................................................................................................................................................................................",
+    ".....................................................................................................................................................................................................................................................................................................................................................",
+    ".....................................................................................................................................................................................................................................................................................................................................................",
+    ".....................................................................................................................................................................................................................................................................................................................................................",
+    ".....................................................................................................................................................................................................................................................................................................................................................",
+    ".....................................................................................................................................................................................................................................................................................................................................................",
+    ".....................................................................................................................................................................................................................................................................................................................................................",
+    ".....................................................................................................................................................................................................................................................................................................................................................",
+    "..................................................^........##.........^........^^.........#.......^^^^.......^^.........#...##.......^....^^^^....#........^^.........##...###.......^....^^^^....#........^^..........^^^..........##...###.......^^^.......^....^^^^....##.........^^^..........^^^..........#...##...###.......^^^.......^^^^....##.........^^^.......................................................",
+    "#####################################################################################################################################################################################################################################################################################################################################################"
 ];
 
-let blocks = [];
-let spikes = [];
-
-function parseLevel() {
-    blocks = []; spikes = [];
-    for(let r=0; r<mapGrid.length; r++) {
-        for(let c=0; c<mapGrid[r].length; c++) {
-            let ch = mapGrid[r][c];
-            let x = c * TILE_SIZE;
-            let y = r * TILE_SIZE;
-            if(ch === '#') blocks.push({x, y, w: TILE_SIZE, h: TILE_SIZE});
-            if(ch === '^') spikes.push({x, y, type: 'up'});
-            if(ch === 'v') spikes.push({x, y, type: 'down'});
-        }
+let blocks = [], spikes = [];
+for(let r=0; r<mapGrid.length; r++) {
+    for(let c=0; c<mapGrid[r].length; c++) {
+        let ch = mapGrid[r][c], x = c * TILE_SIZE, y = r * TILE_SIZE;
+        if(ch === '#') blocks.push({x, y, w: TILE_SIZE, h: TILE_SIZE});
+        if(ch === '^') spikes.push({x, y, type: 'up'});
+        if(ch === 'v') spikes.push({x, y, type: 'down'});
     }
 }
-parseLevel();
 
-let baseSpeed = 5.6;
-let player = { x: 120, y: 320, size: 28, vx: baseSpeed, vy: 0, gravity: 0.74, jumpForce: -12.3, angle: 0, onGround: false };
-let cameraX = 0;
-let particles = [];
-let musicStarted = false;
-let currentScore = 0;
+let player = { x: 120, y: 320, size: 28, vx: 5.6, vy: 0, gravity: 0.74, jumpForce: -12.3, angle: 0, onGround: false };
+let cameraX = 0, particles = [], musicStarted = false, progress = 0;
 let levelWidth = mapGrid[0].length * TILE_SIZE;
 
-// Visual Theme System (score-based shifts)
-function getCurrentTheme() {
-    if (currentScore >= 100) return { main: '#ffd700', glow: 'rgba(255,215,0,0.5)', bg: '#1c1500' }; // Golden
-    if (currentScore >= 50)  return { main: '#ff4500', glow: 'rgba(255,69,0,0.5)', bg: '#1a0500' };  // Fiery
-    if (currentScore >= 20)  return { main: '#ba55d3', glow: 'rgba(186,85,211,0.5)', bg: '#120417' };// Purple
-    return { main: '#00ffff', glow: 'rgba(0,255,255,0.4)', bg: '#050614' };                           // Neon Blue
+function getTheme(pct) {
+    if (pct >= 100) return { main: '#ffd700', glow: 'rgba(255,215,0,0.5)', bg: '#1c1500' };
+    if (pct >= 50)  return { main: '#ff5500', glow: 'rgba(255,85,0,0.5)',  bg: '#180602' };
+    if (pct >= 20)  return { main: '#ba55d3', glow: 'rgba(186,85,211,0.5)', bg: '#130418' };
+    return { main: '#00ffff', glow: 'rgba(0,255,255,0.4)', bg: '#050614' };
 }
 
 function resetGame() {
-    player = { x: 120, y: 320, size: 28, vx: baseSpeed, vy: 0, gravity: 0.74, jumpForce: -12.3, angle: 0, onGround: false };
-    cameraX = 0;
-    particles = [];
-    currentScore = 0;
+    player = { x: 120, y: 320, size: 28, vx: 5.6, vy: 0, gravity: 0.74, jumpForce: -12.3, angle: 0, onGround: false };
+    cameraX = 0; particles = []; progress = 0;
     gameState = 'PLAYING';
     msgOverlay.style.display = 'none';
     if(musicStarted) { bgMusic.play().catch(()=>{}); }
@@ -168,42 +162,29 @@ function die() {
     hitSound.currentTime = 0; hitSound.play().catch(()=>{});
     bgMusic.pause();
     msgText.innerText = "GAME OVER";
-    msgText.style.color = "#f0f";
     overlayActionBtn.innerText = "TRY AGAIN";
     msgOverlay.style.display = 'flex';
-
     for(let i=0; i<20; i++) {
         particles.push({
             x: player.x + player.size/2, y: player.y + player.size/2,
             vx: (Math.random() - 0.5) * 10, vy: (Math.random() - 1) * 10,
-            size: Math.random() * 8 + 2, life: 1.0, color: i % 2 === 0 ? getCurrentTheme().main : '#f0f'
+            size: Math.random() * 8 + 2, life: 1.0, color: i % 2 === 0 ? getTheme(progress).main : '#f0f'
         });
     }
 }
 
 function jump() {
-    if(gameState === 'START') {
-        musicStarted = true; bgMusic.play().catch(()=>{});
-        gameState = 'PLAYING';
-    }
-    if(gameState === 'PLAYING' && player.onGround) {
-        player.vy = player.jumpForce;
-        player.onGround = false;
-    }
+    if(gameState === 'START') { musicStarted = true; bgMusic.play().catch(()=>{}); gameState = 'PLAYING'; }
+    if(gameState === 'PLAYING' && player.onGround) { player.vy = player.jumpForce; player.onGround = false; }
 }
 
-window.addEventListener('keydown', (e) => {
-    if(e.code === 'Space' || e.code === 'ArrowUp') jump();
-});
-window.addEventListener('mousedown', (e) => {
-    if(e.target.tagName === 'CANVAS') jump();
-});
+window.addEventListener('keydown', (e) => { if(e.code === 'Space' || e.code === 'ArrowUp') jump(); });
+window.addEventListener('mousedown', (e) => { if(e.target.tagName === 'CANVAS') jump(); });
 
 function togglePause() {
     if(gameState === 'PLAYING') {
         gameState = 'PAUSED'; bgMusic.pause();
-        msgText.innerText = "PAUSED"; msgText.style.color = "#fff";
-        overlayActionBtn.innerText = "RESUME";
+        msgText.innerText = "PAUSED"; overlayActionBtn.innerText = "RESUME";
         msgOverlay.style.display = 'flex';
     } else if(gameState === 'PAUSED') {
         gameState = 'PLAYING'; bgMusic.play().catch(()=>{});
@@ -213,120 +194,82 @@ function togglePause() {
 
 pauseBtn.addEventListener('click', togglePause);
 resetBtn.addEventListener('click', resetGame);
-overlayActionBtn.addEventListener('click', () => {
-    if(gameState === 'PAUSED') togglePause();
-    else resetGame();
-});
+overlayActionBtn.addEventListener('click', () => { if(gameState === 'PAUSED') togglePause(); else resetGame(); });
 
 function update() {
     if(gameState !== 'PLAYING') return;
 
-    // Score & Speed Scaling
-    currentScore = Math.floor((player.x - 120) / 75);
-    scoreVal.innerText = currentScore;
-    if(currentScore > bestScore) {
-        bestScore = currentScore;
-        localStorage.setItem('objectRunHighScore', bestScore);
-        bestVal.innerText = bestScore;
-    }
-
-    // Dynamic speed ramp
-    player.vx = baseSpeed + (currentScore * 0.015);
     player.vy += player.gravity;
-
-    // X Movement & Block Collision
     player.x += player.vx;
+
     for(let b of blocks) {
         if(player.x < b.x + b.w && player.x + player.size > b.x &&
-           player.y < b.y + b.h && player.y + player.size > b.y) {
-            die(); return;
-        }
+           player.y < b.y + b.h && player.y + player.size > b.y) { die(); return; }
     }
 
-    // Y Movement & Block Collision
     player.y += player.vy;
     player.onGround = false;
     for(let b of blocks) {
         if(player.x < b.x + b.w && player.x + player.size > b.x &&
            player.y < b.y + b.h && player.y + player.size > b.y) {
-            if(player.vy > 0) {
-                player.y = b.y - player.size;
-                player.vy = 0;
-                player.onGround = true;
-            } else if (player.vy < 0) {
-                die(); return;
-            }
+            if(player.vy > 0) { player.y = b.y - player.size; player.vy = 0; player.onGround = true; }
+            else if(player.vy < 0) { die(); return; }
         }
     }
 
-    // Spike Collision (forgiving hitbox)
     let pRect = { x: player.x + 5, y: player.y + 5, w: player.size - 10, h: player.size - 10 };
     for(let s of spikes) {
         let sx = s.x + 8, sy = s.type === 'up' ? s.y + 16 : s.y, sw = 24, sh = 24;
-        if(pRect.x < sx + sw && pRect.x + pRect.w > sx && pRect.y < sy + sh && pRect.y + pRect.h > sy) {
-            die(); return;
-        }
+        if(pRect.x < sx + sw && pRect.x + pRect.w > sx && pRect.y < sy + sh && pRect.y + pRect.h > sy) { die(); return; }
     }
 
-    // Rotation
     if(!player.onGround) player.angle += 0.12;
     else player.angle = Math.round(player.angle / (Math.PI/2)) * (Math.PI/2);
 
     cameraX = player.x - 180;
 
-    // Level Loop / Completion
-    if(player.x >= levelWidth - 800) {
-        gameState = 'WIN';
-        msgText.innerText = "MAP 1 CLEAR!";
-        msgText.style.color = "#0ff";
-        overlayActionBtn.innerText = "PLAY AGAIN";
-        msgOverlay.style.display = 'flex';
+    progress = Math.min(100, Math.max(0, Math.floor((player.x / (levelWidth - 800)) * 100)));
+    uiProgressText.innerText = `${progress}%`;
+    uiProgressBar.style.width = `${progress}%`;
+
+    if(progress > bestProgress) {
+        bestProgress = progress;
+        localStorage.setItem('objectRunBest', bestProgress);
+        uiBest.innerText = `BEST: ${bestProgress}%`;
+    }
+    if(progress >= 100) {
+        gameState = 'WIN'; msgText.innerText = "COMPLETE!"; overlayActionBtn.innerText = "PLAY AGAIN"; msgOverlay.style.display = 'flex';
     }
 }
 
 function draw() {
-    const theme = getCurrentTheme();
+    const theme = getTheme(progress);
     document.documentElement.style.setProperty('--theme-color', theme.main);
     document.documentElement.style.setProperty('--theme-glow', theme.glow);
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Background
     ctx.fillStyle = theme.bg;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Grid
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
-    ctx.lineWidth = 1;
     ctx.beginPath();
-    let offsetX = cameraX % TILE_SIZE;
-    for(let i=0; i<=canvas.width; i+=TILE_SIZE) { 
-        ctx.moveTo(i-offsetX, 0); ctx.lineTo(i-offsetX, canvas.height); 
-    }
-    for(let i=0; i<=canvas.height; i+=TILE_SIZE) { 
-        ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); 
-    }
+    let offX = cameraX % TILE_SIZE;
+    for(let i=0; i<=canvas.width; i+=TILE_SIZE) { ctx.moveTo(i-offX, 0); ctx.lineTo(i-offX, canvas.height); }
+    for(let i=0; i<=canvas.height; i+=TILE_SIZE) { ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); }
     ctx.stroke();
 
     ctx.save();
     ctx.translate(-cameraX, 0);
 
-    // Blocks
-    ctx.shadowBlur = 10;
-    ctx.shadowColor = theme.main;
-    ctx.strokeStyle = theme.main;
-    ctx.fillStyle = '#060a12';
-    ctx.lineWidth = 2;
+    ctx.shadowBlur = 10; ctx.shadowColor = theme.main; ctx.strokeStyle = theme.main;
+    ctx.fillStyle = '#060a12'; ctx.lineWidth = 2;
     for(let b of blocks) {
         if(b.x > cameraX - TILE_SIZE && b.x < cameraX + 850) {
-            ctx.fillRect(b.x, b.y, b.w, b.h);
-            ctx.strokeRect(b.x, b.y, b.w, b.h);
+            ctx.fillRect(b.x, b.y, b.w, b.h); ctx.strokeRect(b.x, b.y, b.w, b.h);
         }
     }
 
-    // Spikes
-    ctx.shadowColor = '#f0f';
-    ctx.fillStyle = '#f0f';
+    ctx.shadowColor = '#f0f'; ctx.fillStyle = '#f0f';
     for(let s of spikes) {
         if(s.x > cameraX - TILE_SIZE && s.x < cameraX + 850) {
             ctx.beginPath();
@@ -343,10 +286,8 @@ function draw() {
         }
     }
 
-    // Player
     if(gameState !== 'GAMEOVER') {
-        ctx.shadowColor = theme.main;
-        ctx.fillStyle = theme.main;
+        ctx.shadowColor = theme.main; ctx.fillStyle = theme.main;
         ctx.save();
         ctx.translate(player.x + player.size/2, player.y + player.size/2);
         ctx.rotate(player.angle);
@@ -356,7 +297,6 @@ function draw() {
         ctx.restore();
     }
 
-    // Death particles
     if(gameState === 'GAMEOVER') {
         ctx.shadowBlur = 6;
         for(let p of particles) {
@@ -369,23 +309,18 @@ function draw() {
         }
         ctx.globalAlpha = 1.0;
     }
-
     ctx.restore();
 
     if(gameState === 'START') {
         ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(0,0,800,440);
         ctx.fillStyle = theme.main; ctx.font = '22px Orbitron'; ctx.textAlign = 'center';
         ctx.shadowBlur = 10; ctx.shadowColor = theme.main;
-        ctx.fillText("PRESS SPACE OR CLICK TO JUMP", 400, 220);
+        ctx.fillText("PRESS SPACE OR CLICK TO RUN", 400, 220);
         ctx.textAlign = 'left';
     }
 }
 
-function loop() {
-    update();
-    draw();
-    requestAnimationFrame(loop);
-}
+function loop() { update(); draw(); requestAnimationFrame(loop); }
 requestAnimationFrame(loop);
 </script>
 </body>
