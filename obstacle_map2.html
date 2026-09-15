@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OBJECT RUN 🏃 — Map 2: Volcanic Ruins 🌋</title>
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&display=swap');
+    * { box-sizing: border-box; }
+    body {
+        margin: 0; padding: 0; background: #080302; color: #fff;
+        font-family: 'Orbitron', sans-serif; overflow: hidden; user-select: none;
+    }
+    #game-container {
+        position: relative; width: 800px; height: 440px; margin: 30px auto;
+        box-shadow: 0 0 35px rgba(255, 69, 0, 0.4);
+        border: 2px solid #ff450088; border-radius: 10px; overflow: hidden;
+    }
+    canvas { display: block; width: 100%; height: 100%; background: #0c0402; }
+    #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+    
+    .back-arrow {
+        position: absolute; top: 15px; left: 15px; color: #ff5500;
+        text-decoration: none; display: flex; align-items: center; justify-content: center;
+        pointer-events: auto; transition: 0.2s; filter: drop-shadow(0 0 6px #ff3300);
+    }
+    .back-arrow:hover { transform: scale(1.15) translateX(-2px); color: #ffd700; filter: drop-shadow(0 0 10px #ffd700); }
+
+    #progress-container {
+        position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+        width: 380px; text-align: center;
+    }
+    #progress-text {
+        font-size: 17px; font-weight: 900; color: #ff6600;
+        text-shadow: 0 0 10px #ff3300; letter-spacing: 2px;
+    }
+    #progress-bar-bg {
+        width: 100%; height: 9px; background: rgba(40, 15, 5, 0.6);
+        border: 2px solid #ff4500; border-radius: 6px; overflow: hidden; margin-top: 5px;
+        box-shadow: 0 0 8px rgba(255, 69, 0, 0.4);
+    }
+    #progress-bar-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #ff3300, #ffbb00); box-shadow: 0 0 10px #ff5500; }
+    
+    #best {
+        position: absolute; top: 14px; right: 20px; font-size: 15px;
+        color: #ffaa00; text-shadow: 0 0 8px #ff4500;
+    }
+
+    .btn {
+        position: absolute; padding: 8px 18px; font-family: 'Orbitron', sans-serif;
+        background: #1a0803; border: 2px solid #ff5500; color: #ff7700;
+        font-size: 13px; font-weight: 700; cursor: pointer; pointer-events: auto;
+        border-radius: 6px; transition: 0.2s; text-shadow: 0 0 5px #ff3300;
+        box-shadow: 0 0 10px rgba(255, 69, 0, 0.3);
+    }
+    .btn:hover { background: #ff5500; color: #000; box-shadow: 0 0 18px #ff7700; }
+    #pauseBtn { bottom: 15px; right: 15px; }
+    #resetBtn { bottom: 15px; right: 110px; }
+
+    #message-overlay {
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        display: none; justify-content: center; align-items: center;
+        flex-direction: column; background: rgba(14, 5, 2, 0.88); gap: 14px; z-index: 10;
+    }
+    #message-text { font-size: 38px; color: #ff2200; text-shadow: 0 0 20px #ff4400; margin-bottom: 6px; }
+    .msg-btn { position: relative; pointer-events: auto; font-size: 16px; padding: 10px 24px; }
+    #hubBtn { border-color: #ffaa00; color: #ffaa00; text-shadow: 0 0 6px #ff7700; box-shadow: 0 0 12px rgba(255, 170, 0, 0.3); }
+    #hubBtn:hover { background: #ffaa00; color: #000; box-shadow: 0 0 20px #ffaa00; }
+</style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="gameCanvas" width="800" height="440"></canvas>
+    
+    <div id="ui-layer">
+        <a href="obstacle.html" class="back-arrow" title="Back to Map Selection">
+            <svg viewBox="0 0 24 24" width="28" height="28" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+        </a>
+
+        <div id="progress-container">
+            <div id="progress-text">PROGRESS: 0%</div>
+            <div id="progress-bar-bg"><div id="progress-bar-fill"></div></div>
+        </div>
+
+        <div id="best">BEST: 0%</div>
+        <button id="resetBtn" class="btn">RESET</button>
+        <button id="pauseBtn" class="btn">PAUSE</button>
+
+        <div id="message-overlay">
+            <div id="message-text">CRUSHED IN LAVA</div>
+            <button id="overlayActionBtn" class="btn msg-btn">TRY AGAIN</button>
+            <button id="hubBtn" class="btn msg-btn" onclick="window.location.href='obstacle.html'">MAP SELECT</button>
+        </div>
+    </div>
+</div>
+
+<audio id="sfx-collision" src="collision.mp3" preload="auto"></audio>
+<audio id="sfx-music" src="music.mp3" loop preload="auto"></audio>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const uiProgressText = document.getElementById('progress-text');
+const uiProgressBar = document.getElementById('progress-bar-fill');
+const uiBest = document.getElementById('best');
+const pauseBtn = document.getElementById('pauseBtn');
+const resetBtn = document.getElementById('resetBtn');
+const overlayActionBtn = document.getElementById('overlayActionBtn');
+const msgOverlay = document.getElementById('message-overlay');
+const msgText = document.getElementById('message-text');
+const bgMusic = document.getElementById('sfx-music');
+const hitSound = document.getElementById('sfx-collision');
+
+let gameState = 'START';
+let bestProgress = parseInt(localStorage.getItem('objectRunMap2Best') || 0);
+uiBest.innerText = `BEST: ${bestProgress}%`;
+
+const TILE_SIZE = 40;
+
+/*
+================================================================================
+ 🗺️ MAP 2 LEGEND (VOLCANIC RUINS)
+--------------------------------------------------------------------------------
+ '.' = Empty Open Space
+ '#' = Ancient Cracked Stone Platform
+ '^' = Jagged Lava Crystal Spikes
+ '*' = Liquid Surface Lava Hazard (Bubbling molten pool)
+ 
+ GRID STRUCTURE (11 Rows total):
+ - Rows 0 - 6 : Upper Cavern Ceiling & Air
+ - Row 7       : High Stone Ruins
+ - Row 8       : Mid-Air Ruin Platforms (Directly above lava/spike hazards)
+ - Row 9       : Ground Surface (Lava crystals '^', Molten lava '*', and stone steps '#')
+ - Row 10      : Solid Molten Bedrock Floor
+================================================================================
+*/
+const mapGrid = [
+    "...........................................................................................................................................#####################################.....................................................................................................................................................................................................................................................................................................................................",
+    "...........................................................................................................................................#####################################.....................................................................................................................................................................................................................................................................................................................................",
+    "...........................................................................................................................................#####################################.....................................................................................................................................................................................................................................................................................................................................",
+    "...........................................................................................................................................#####################################.....................................................................................................................................................................................................................................................................................................................................",
+    ".....................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................",
+    "...................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................................  ",
+    "...................................................................................................................................................................................................................................................##................................................................................................................................................................................................................................................................",
+    "......................................................................................................................................##...###########**############**##########...##......................................................... ##......##............................................................................................................................................................................................................................................................",
+    "....................................................#..............................................####..............####.........##.......#####################################.......##..............................#############^^######...............##........................................................................................................................................................................................................................................................",
+    "...............................^^...............#***#***#........##.........^^.........^^......##**********#######....****....##...........#####################################...........##.......^^.........#####***#####################****************** ##....................................................................................................................................................................................................................................................",
+    "#####################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################################"
+];
+
+let blocks = [];
+let spikes = [];
+let lavaTiles = [];
+let obstacleXCoords = [];
+
+function parseLevel() {
+    blocks = []; spikes = []; lavaTiles = []; obstacleXCoords = [];
+    const recordedCols = new Set();
+
+    for (let r = 0; r < mapGrid.length; r++) {
+        for (let c = 0; c < mapGrid[r].length; c++) {
+            let ch = mapGrid[r][c];
+            let x = c * TILE_SIZE;
+            let y = r * TILE_SIZE;
+
+            if (ch === '#') {
+                blocks.push({ x, y, w: TILE_SIZE, h: TILE_SIZE });
+                if (r < 10 && !recordedCols.has(c)) {
+                    obstacleXCoords.push(x);
+                    recordedCols.add(c);
+                }
+            } else if (ch === '^') {
+                spikes.push({ x, y });
+                if (!recordedCols.has(c)) {
+                    obstacleXCoords.push(x);
+                    recordedCols.add(c);
+                }
+            } else if (ch === '*') {
+                lavaTiles.push({ x, y });
+                if (!recordedCols.has(c)) {
+                    obstacleXCoords.push(x);
+                    recordedCols.add(c);
+                }
+            }
+        }
+    }
+    obstacleXCoords.sort((a, b) => a - b);
+}
+parseLevel();
+
+let player = {
+    x: 120, y: 320, size: 34,
+    vx: 5.9, vy: 0,
+    gravity: 0.75, jumpForce: -12.4,
+    angle: 0, onGround: false
+};
+
+let cameraX = 0;
+let particles = [];
+let ashEmberParticles = [];
+let musicStarted = false;
+let currentProgress = 0;
+let lavaWaveTimer = 0;
+const totalObstacles = Math.max(1, obstacleXCoords.length);
+
+// Atmospheric floating embers drifting upward
+for (let i = 0; i < 45; i++) {
+    ashEmberParticles.push({
+        x: Math.random() * 800,
+        y: Math.random() * 440,
+        vx: (Math.random() - 0.5) * 0.8 - 0.5,
+        vy: -Math.random() * 1.5 - 0.6,
+        size: Math.random() * 3 + 1,
+        life: Math.random()
+    });
+}
+
+function resetGame() {
+    player = {
+        x: 120, y: 320, size: 34,
+        vx: 5.9, vy: 0,
+        gravity: 0.75, jumpForce: -12.4,
+        angle: 0, onGround: false
+    };
+    cameraX = 0;
+    particles = [];
+    currentProgress = 0;
+    gameState = 'PLAYING';
+    msgOverlay.style.display = 'none';
+    if (musicStarted) { bgMusic.currentTime = 0; bgMusic.play().catch(() => {}); }
+}
+
+function die() {
+    gameState = 'GAMEOVER';
+    hitSound.currentTime = 0; hitSound.play().catch(() => {});
+    bgMusic.pause();
+    msgText.innerText = "CRUSHED IN LAVA";
+    msgText.style.color = "#ff3300";
+    overlayActionBtn.innerText = "TRY AGAIN";
+    msgOverlay.style.display = 'flex';
+
+    for (let i = 0; i < 22; i++) {
+        particles.push({
+            x: player.x + player.size / 2,
+            y: player.y + player.size / 2,
+            vx: (Math.random() - 0.5) * 13,
+            vy: (Math.random() - 1.2) * 12,
+            size: Math.random() * 8 + 3,
+            rot: Math.random() * Math.PI,
+            rotSpeed: (Math.random() - 0.5) * 0.35,
+            life: 1.0,
+            color: i % 2 === 0 ? '#ff3700' : '#ffa600'
+        });
+    }
+}
+
+function win() {
+    gameState = 'WIN';
+    msgText.innerText = "🌋 RUINS ESCAPED! 🌋";
+    msgText.style.color = "#ffaa00";
+    overlayActionBtn.innerText = "PLAY AGAIN";
+    msgOverlay.style.display = 'flex';
+}
+
+function jump() {
+    if (gameState === 'START') {
+        musicStarted = true;
+        bgMusic.play().catch(() => {});
+        gameState = 'PLAYING';
+    }
+    if (gameState === 'PLAYING' && player.onGround) {
+        player.vy = player.jumpForce;
+        player.onGround = false;
+    }
+}
+
+window.addEventListener('keydown', (e) => {
+    if (e.code === 'Space' || e.code === 'ArrowUp') {
+        e.preventDefault();
+        jump();
+    }
+});
+window.addEventListener('mousedown', (e) => {
+    if (e.target.tagName === 'CANVAS') jump();
+});
+
+function togglePause() {
+    if (gameState === 'PLAYING') {
+        gameState = 'PAUSED';
+        bgMusic.pause();
+        msgText.innerText = "PAUSED";
+        msgText.style.color = "#ffffff";
+        overlayActionBtn.innerText = "RESUME";
+        msgOverlay.style.display = 'flex';
+    } else if (gameState === 'PAUSED') {
+        gameState = 'PLAYING';
+        bgMusic.play().catch(() => {});
+        msgOverlay.style.display = 'none';
+    }
+}
+
+pauseBtn.addEventListener('click', togglePause);
+resetBtn.addEventListener('click', resetGame);
+overlayActionBtn.addEventListener('click', () => {
+    if (gameState === 'PAUSED') togglePause();
+    else resetGame();
+});
+
+function update() {
+    if (gameState !== 'PLAYING') return;
+
+    lavaWaveTimer += 0.08;
+    player.vy += player.gravity;
+
+    player.x += player.vx;
+    for (let b of blocks) {
+        if (player.x < b.x + b.w && player.x + player.size > b.x &&
+            player.y < b.y + b.h && player.y + player.size > b.y) {
+            die(); return;
+        }
+    }
+
+    player.y += player.vy;
+    player.onGround = false;
+    for (let b of blocks) {
+        if (player.x < b.x + b.w && player.x + player.size > b.x &&
+            player.y < b.y + b.h && player.y + player.size > b.y) {
+            if (player.vy > 0 && player.y + player.size - player.vy <= b.y + 12) {
+                player.y = b.y - player.size;
+                player.vy = 0;
+                player.onGround = true;
+            } else if (player.vy < 0) {
+                die(); return;
+            }
+        }
+    }
+
+    let pRect = { x: player.x + 5, y: player.y + 5, w: player.size - 10, h: player.size - 10 };
+
+    // Lava Crystal Hazard Collision (^)
+    for (let sp of spikes) {
+        let sx = sp.x + 8, sy = sp.y + 16, sw = 24, sh = 24;
+        if (pRect.x < sx + sw && pRect.x + pRect.w > sx && pRect.y < sy + sh && pRect.y + pRect.h > sy) {
+            die(); return;
+        }
+    }
+
+    // Liquid Surface Lava Hazard Collision (*)
+    for (let lv of lavaTiles) {
+        let lx = lv.x + 2, ly = lv.y + 18, lw = TILE_SIZE - 4, lh = TILE_SIZE - 18;
+        if (pRect.x < lx + lw && pRect.x + pRect.w > lx && pRect.y < ly + lh && pRect.y + pRect.h > ly) {
+            die(); return;
+        }
+    }
+
+    if (!player.onGround) {
+        player.angle += 0.13;
+    } else {
+        player.angle = Math.round(player.angle / (Math.PI / 2)) * (Math.PI / 2);
+    }
+
+    cameraX = player.x - 180;
+
+    let passedCount = 0;
+    for (let ox of obstacleXCoords) {
+        if (player.x > ox) passedCount++;
+        else break;
+    }
+
+    let rawPercent = Math.floor((passedCount / totalObstacles) * 100);
+    currentProgress = Math.min(100, Math.max(0, rawPercent));
+    
+    uiProgressText.innerText = `PROGRESS: ${currentProgress}%`;
+    uiProgressBar.style.width = `${currentProgress}%`;
+
+    if (currentProgress > bestProgress) {
+        bestProgress = currentProgress;
+        localStorage.setItem('objectRunMap2Best', bestProgress);
+        uiBest.innerText = `BEST: ${bestProgress}%`;
+    }
+
+    if (currentProgress >= 100) win();
+}
+
+function drawBackground() {
+    let grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    grad.addColorStop(0, '#100301');
+    grad.addColorStop(0.5, '#200702');
+    grad.addColorStop(0.85, '#3b0d02');
+    grad.addColorStop(1, '#ff3700');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = 'rgba(26, 6, 2, 0.7)';
+    ctx.beginPath();
+    ctx.moveTo(0, canvas.height);
+    for (let x = 0; x <= canvas.width + 120; x += 90) {
+        let peakY = 240 + Math.sin((x + cameraX * 0.15) * 0.008) * 55;
+        ctx.lineTo(x, peakY);
+    }
+    ctx.lineTo(canvas.width, canvas.height);
+    ctx.fill();
+
+    for (let e of ashEmberParticles) {
+        e.y += e.vy;
+        e.x += e.vx;
+        if (e.y < -10) { e.y = canvas.height + 10; e.x = Math.random() * canvas.width; }
+        ctx.fillStyle = `rgba(255, ${Math.floor(100 + Math.random() * 120)}, 0, ${0.4 + Math.random() * 0.5})`;
+        ctx.fillRect(e.x, e.y, e.size, e.size);
+    }
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    drawBackground();
+
+    ctx.save();
+    ctx.translate(-cameraX, 0);
+
+    // Render Cracked Basalt Stone Blocks (#)
+    for (let b of blocks) {
+        if (b.x > cameraX - TILE_SIZE && b.x < cameraX + 850) {
+            ctx.fillStyle = '#160d0b';
+            ctx.fillRect(b.x, b.y, b.w, b.h);
+
+            ctx.strokeStyle = '#ff4d00';
+            ctx.lineWidth = 2;
+            ctx.shadowBlur = 8;
+            ctx.shadowColor = '#ff3300';
+            ctx.strokeRect(b.x + 1, b.y + 1, b.w - 2, b.h - 2);
+
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = '#38160f';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(b.x + 6, b.y + 8);
+            ctx.lineTo(b.x + 18, b.y + 22);
+            ctx.lineTo(b.x + 32, b.y + 16);
+            ctx.moveTo(b.x + 18, b.y + 22);
+            ctx.lineTo(b.x + 22, b.y + 34);
+            ctx.stroke();
+        }
+    }
+
+    // Render Liquid Molten Lava Hazard (*)
+    for (let lv of lavaTiles) {
+        if (lv.x > cameraX - TILE_SIZE && lv.x < cameraX + 850) {
+            ctx.shadowBlur = 14;
+            ctx.shadowColor = '#ff3300';
+            
+            // Lava bed base
+            ctx.fillStyle = '#cc2900';
+            ctx.fillRect(lv.x, lv.y + 16, TILE_SIZE, TILE_SIZE - 16);
+
+            // Animated surface crest
+            ctx.fillStyle = '#ffcc00';
+            ctx.beginPath();
+            let waveOffset = Math.sin(lavaWaveTimer + lv.x * 0.05) * 3;
+            ctx.moveTo(lv.x, lv.y + 20 + waveOffset);
+            ctx.quadraticCurveTo(lv.x + TILE_SIZE / 2, lv.y + 12 - waveOffset, lv.x + TILE_SIZE, lv.y + 20 + waveOffset);
+            ctx.lineTo(lv.x + TILE_SIZE, lv.y + TILE_SIZE);
+            ctx.lineTo(lv.x, lv.y + TILE_SIZE);
+            ctx.closePath();
+            ctx.fill();
+        }
+    }
+
+    // Render Jagged Lava Crystal Spikes (^)
+    for (let sp of spikes) {
+        if (sp.x > cameraX - TILE_SIZE && sp.x < cameraX + 850) {
+            ctx.shadowBlur = 12;
+            ctx.shadowColor = '#ff2200';
+            ctx.fillStyle = '#ff3700';
+
+            ctx.beginPath();
+            ctx.moveTo(sp.x + TILE_SIZE / 2, sp.y + 4);
+            ctx.lineTo(sp.x + TILE_SIZE - 4, sp.y + TILE_SIZE);
+            ctx.lineTo(sp.x + 4, sp.y + TILE_SIZE);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.fillStyle = '#ffd000';
+            ctx.beginPath();
+            ctx.moveTo(sp.x + TILE_SIZE / 2, sp.y + 14);
+            ctx.lineTo(sp.x + TILE_SIZE / 2 + 5, sp.y + TILE_SIZE);
+            ctx.lineTo(sp.x + TILE_SIZE / 2 - 5, sp.y + TILE_SIZE);
+            ctx.closePath();
+            ctx.fill();
+        }
+    }
+
+    // Render Player Cube
+    if (gameState !== 'GAMEOVER') {
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = '#ff6600';
+        ctx.fillStyle = '#ff5500';
+        ctx.save();
+        ctx.translate(player.x + player.size / 2, player.y + player.size / 2);
+        ctx.rotate(player.angle);
+        ctx.fillRect(-player.size / 2, -player.size / 2, player.size, player.size);
+        
+        ctx.fillStyle = '#ffe600';
+        ctx.fillRect(-player.size / 4, -player.size / 4, player.size / 2, player.size / 2);
+        ctx.restore();
+    }
+
+    // Death Molten Explosion
+    if (gameState === 'GAMEOVER') {
+        ctx.shadowBlur = 10;
+        for (let p of particles) {
+            if (p.life > 0) {
+                p.vy += 0.55;
+                p.x += p.vx;
+                p.y += p.vy;
+                p.rot += p.rotSpeed;
+                p.life -= 0.022;
+
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate(p.rot);
+                ctx.globalAlpha = Math.max(0, p.life);
+                ctx.shadowColor = p.color;
+                ctx.fillStyle = p.color;
+                ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+                ctx.restore();
+            }
+        }
+        ctx.globalAlpha = 1.0;
+    }
+
+    ctx.restore();
+
+    if (gameState === 'START') {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+        ctx.fillRect(0, 0, 800, 440);
+        ctx.fillStyle = '#ff6600';
+        ctx.font = '22px Orbitron';
+        ctx.textAlign = 'center';
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = '#ff3300';
+        ctx.fillText("CLICK OR PRESS SPACE TO ENTER THE RUINS", 400, 220);
+        ctx.textAlign = 'left';
+    }
+}
+
+function loop() {
+    update();
+    draw();
+    requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

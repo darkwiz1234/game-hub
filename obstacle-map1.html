@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OBJECT RUN 🏃 — Map 1</title>
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&display=swap');
+    * { box-sizing: border-box; }
+    body {
+        margin: 0; padding: 0; background: #060511; color: #fff;
+        font-family: 'Orbitron', sans-serif; overflow: hidden; user-select: none;
+    }
+    #game-container {
+        position: relative; width: 800px; height: 440px; margin: 30px auto;
+        box-shadow: 0 0 35px rgba(0, 255, 255, 0.35);
+        border: 2px solid #00f0ff88; border-radius: 10px; overflow: hidden;
+    }
+    canvas { display: block; width: 100%; height: 100%; background: #09061a; }
+    #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+    
+    .back-arrow {
+        position: absolute; top: 15px; left: 15px; color: #00f0ff;
+        text-decoration: none; display: flex; align-items: center; justify-content: center;
+        pointer-events: auto; transition: 0.2s; filter: drop-shadow(0 0 6px #00f0ff);
+    }
+    .back-arrow:hover { transform: scale(1.15) translateX(-2px); color: #ff00ea; filter: drop-shadow(0 0 10px #ff00ea); }
+
+    #progress-container {
+        position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+        width: 380px; text-align: center;
+    }
+    #progress-text {
+        font-size: 17px; font-weight: 900; color: #00f0ff;
+        text-shadow: 0 0 10px #00f0ff; letter-spacing: 2px;
+    }
+    #progress-bar-bg {
+        width: 100%; height: 9px; background: rgba(255, 255, 255, 0.12);
+        border: 2px solid #00f0ff; border-radius: 6px; overflow: hidden; margin-top: 5px;
+        box-shadow: 0 0 8px rgba(0, 240, 255, 0.3);
+    }
+    #progress-bar-fill { height: 100%; width: 0%; background: #00f0ff; box-shadow: 0 0 10px #00f0ff; }
+    
+    #best {
+        position: absolute; top: 14px; right: 20px; font-size: 15px;
+        color: #00f0ff; text-shadow: 0 0 8px #00f0ff;
+    }
+
+    .btn {
+        position: absolute; padding: 8px 18px; font-family: 'Orbitron', sans-serif;
+        background: #0d0a22; border: 2px solid #00f0ff; color: #00f0ff;
+        font-size: 13px; font-weight: 700; cursor: pointer; pointer-events: auto;
+        border-radius: 6px; transition: 0.2s; text-shadow: 0 0 5px #00f0ff;
+        box-shadow: 0 0 10px rgba(0, 240, 255, 0.25);
+    }
+    .btn:hover { background: #00f0ff; color: #000; box-shadow: 0 0 18px #00f0ff; }
+    #pauseBtn { bottom: 15px; right: 15px; }
+    #resetBtn { bottom: 15px; right: 110px; }
+
+    #message-overlay {
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        display: none; justify-content: center; align-items: center;
+        flex-direction: column; background: rgba(6, 4, 18, 0.85); gap: 14px; z-index: 10;
+    }
+    #message-text { font-size: 38px; color: #ff00ea; text-shadow: 0 0 20px #ff00ea; margin-bottom: 6px; }
+    .msg-btn { position: relative; pointer-events: auto; font-size: 16px; padding: 10px 24px; }
+    #hubBtn { border-color: #ff00ea; color: #ff00ea; text-shadow: 0 0 6px #ff00ea; box-shadow: 0 0 12px rgba(255, 0, 234, 0.3); }
+    #hubBtn:hover { background: #ff00ea; color: #000; box-shadow: 0 0 20px #ff00ea; }
+</style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="gameCanvas" width="800" height="440"></canvas>
+    
+    <div id="ui-layer">
+        <a href="index.html" class="back-arrow" title="Back to Hub">
+            <svg viewBox="0 0 24 24" width="28" height="28" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="19" y1="12" x2="5" y2="12"></line>
+                <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+        </a>
+
+        <div id="progress-container">
+            <div id="progress-text">PROGRESS: 0%</div>
+            <div id="progress-bar-bg"><div id="progress-bar-fill"></div></div>
+        </div>
+
+        <div id="best">BEST: 0%</div>
+        <button id="resetBtn" class="btn">RESET</button>
+        <button id="pauseBtn" class="btn">PAUSE</button>
+
+        <div id="message-overlay">
+            <div id="message-text">GAME OVER</div>
+            <button id="overlayActionBtn" class="btn msg-btn">TRY AGAIN</button>
+            <button id="hubBtn" class="btn msg-btn" onclick="window.location.href='index.html'">BACK TO HUB</button>
+        </div>
+    </div>
+</div>
+
+<audio id="sfx-collision" src="collision.mp3" preload="auto"></audio>
+<audio id="sfx-music" src="music.mp3" loop preload="auto"></audio>
+
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+const uiProgressText = document.getElementById('progress-text');
+const uiProgressBar = document.getElementById('progress-bar-fill');
+const uiBest = document.getElementById('best');
+const pauseBtn = document.getElementById('pauseBtn');
+const resetBtn = document.getElementById('resetBtn');
+const overlayActionBtn = document.getElementById('overlayActionBtn');
+const msgOverlay = document.getElementById('message-overlay');
+const msgText = document.getElementById('message-text');
+const bgMusic = document.getElementById('sfx-music');
+const hitSound = document.getElementById('sfx-collision');
+
+let gameState = 'START';
+let bestProgress = parseInt(localStorage.getItem('objectRunBest') || 0);
+uiBest.innerText = `BEST: ${bestProgress}%`;
+
+const TILE_SIZE = 40; // Base tile unit (40px)
+const ROWS = 11;
+
+/*
+  Handcrafted 8-Section Level Layout:
+  '#' = Solid terrain / block (40x40)
+  '^' = Floor spike (40x40)
+  'v' = Underside ceiling spike (hangs below floating platform)
+  '.' = Empty space
+*/
+const mapGrid = [
+    "........................................................................................................................................................................................................................................................................................................................................................................................................................",
+    ".........................................................................................................................................................................................................................................................................................................................................................................................###############################",
+    ".........................................................................................................................................................................................................................................................................................................................................................................................###############################",
+    ".........................................................................................................................................................................................................................................................................................................................................................................................###############################",
+    "........................................................................................................................................................................................................................................................................................................................................................................................................................",
+    "........................................................................................................................................................................................................................................................................................................................................................................................................................",
+    "............................................................................................................................................................##.................................................................................................................................................................................................##.......................................................",
+    "...............................................#........................................................................................................##.......##........................................................................................................................................................................................##......##..................................^^...............",
+    "...........................................#...#.#..................................####............................####..........................####.................##.....####..........................####....###..........................................#####^^####...........................................................................##..............##................###############################",
+    ".......................................#^^^#^^^#...#.......^^........^^........##.....^^^...##........^^.........##...^^^^..##........^^.......####...^^^^^^^^^^^^^^^^^^.......^^^^^^.....##.....^^.....##..^^......^^^^....##.......^^..........##.^^^......######################.^^.......##.......^^..........###..^^^....##.........^^........##^^^^^^^^^^^^^^^^^^^^......^^.....####..............................",
+    "########################################################################################################################################################################################################################################################################################################################################################################################################################"
+];
+let blocks = [];
+let spikes = [];
+let obstacleXCoords = []; // Distinct obstacle locations to compute real % progress
+    blocks = []; spikes = []; obstacleXCoords = [];
+function parseLevel() {
+
+    const recordedCols = new Set();
+
+    for (let r = 0; r < mapGrid.length; r++) {
+        for (let c = 0; c < mapGrid[r].length; c++) {
+            let ch = mapGrid[r][c];
+            let x = c * TILE_SIZE;
+            let y = r * TILE_SIZE;
+
+            if (ch === '#') {
+                blocks.push({ x, y, w: TILE_SIZE, h: TILE_SIZE });
+                // Count elevated blocks (above base floor at row 10) as obstacles
+                if (r < 10 && !recordedCols.has(c)) {
+                    obstacleXCoords.push(x);
+                    recordedCols.add(c);
+                }
+            } else if (ch === '^') {
+                spikes.push({ x, y, type: 'up' });
+                if (!recordedCols.has(c)) {
+                    obstacleXCoords.push(x);
+                    recordedCols.add(c);
+                }
+            } else if (ch === 'v') {
+                spikes.push({ x, y, type: 'down' });
+            }
+        }
+    }
+    obstacleXCoords.sort((a, b) => a - b);
+}
+parseLevel();
+
+// Player cube (40x40 standard) with jump arc tuned to reach up to ~88px (2.2 blocks)
+let player = {
+    x: 120, y: 320, size: 36,
+    vx: 5.7, vy: 0,
+    gravity: 0.74, jumpForce: -12.4,
+    angle: 0, onGround: false
+};
+
+let cameraX = 0;
+let particles = [];
+let trailParticles = [];
+let musicStarted = false;
+let currentProgress = 0;
+const totalObstacles = obstacleXCoords.length;
+
+// Floating background decorative shapes
+const bgDecorations = [];
+for (let i = 0; i < 28; i++) {
+    bgDecorations.push({
+        x: Math.random() * 2200,
+        y: Math.random() * 260 + 20,
+        size: Math.random() * 22 + 8,
+        speed: Math.random() * 0.35 + 0.15,
+        rot: Math.random() * Math.PI,
+        type: i % 2 === 0 ? 'square' : 'diamond'
+    });
+}
+
+function resetGame() {
+    player = {
+        x: 120, y: 320, size: 36,
+        vx: 5.7, vy: 0,
+        gravity: 0.74, jumpForce: -12.4,
+        angle: 0, onGround: false
+    };
+    cameraX = 0;
+    particles = [];
+    trailParticles = [];
+    currentProgress = 0;
+    gameState = 'PLAYING';
+    msgOverlay.style.display = 'none';
+    if (musicStarted) { bgMusic.currentTime = 0; bgMusic.play().catch(() => {}); }
+}
+
+function die() {
+    gameState = 'GAMEOVER';
+    hitSound.currentTime = 0; hitSound.play().catch(() => {});
+    bgMusic.pause();
+    msgText.innerText = "GAME OVER";
+    msgText.style.color = "#ff00ea";
+    overlayActionBtn.innerText = "TRY AGAIN";
+    msgOverlay.style.display = 'flex';
+
+    // Break cube into 16 scattering pieces
+    for (let i = 0; i < 18; i++) {
+        particles.push({
+            x: player.x + player.size / 2,
+            y: player.y + player.size / 2,
+            vx: (Math.random() - 0.5) * 12,
+            vy: (Math.random() - 1.1) * 11,
+            size: Math.random() * 7 + 3,
+            rot: Math.random() * Math.PI,
+            rotSpeed: (Math.random() - 0.5) * 0.3,
+            life: 1.0,
+            color: i % 2 === 0 ? '#00f0ff' : '#ff00ea'
+        });
+    }
+}
+
+function win() {
+    gameState = 'WIN';
+    msgText.innerText = "🎉 MAP 1 COMPLETE! 🎉";
+    msgText.style.color = "#00f0ff";
+    overlayActionBtn.innerText = "PLAY AGAIN";
+    msgOverlay.style.display = 'flex';
+}
+
+function jump() {
+    if (gameState === 'START') {
+        musicStarted = true;
+        bgMusic.play().catch(() => {});
+        gameState = 'PLAYING';
+    }
+    if (gameState === 'PLAYING' && player.onGround) {
+        player.vy = player.jumpForce;
+        player.onGround = false;
+    }
+}
+
+window.addEventListener('keydown', (e) => {
+    if (e.code === 'Space' || e.code === 'ArrowUp') {
+        e.preventDefault();
+        jump();
+    }
+});
+window.addEventListener('mousedown', (e) => {
+    if (e.target.tagName === 'CANVAS') jump();
+});
+
+function togglePause() {
+    if (gameState === 'PLAYING') {
+        gameState = 'PAUSED';
+        bgMusic.pause();
+        msgText.innerText = "PAUSED";
+        msgText.style.color = "#ffffff";
+        overlayActionBtn.innerText = "RESUME";
+        msgOverlay.style.display = 'flex';
+    } else if (gameState === 'PAUSED') {
+        gameState = 'PLAYING';
+        bgMusic.play().catch(() => {});
+        msgOverlay.style.display = 'none';
+    }
+}
+
+pauseBtn.addEventListener('click', togglePause);
+resetBtn.addEventListener('click', resetGame);
+overlayActionBtn.addEventListener('click', () => {
+    if (gameState === 'PAUSED') togglePause();
+    else resetGame();
+});
+
+function update() {
+    if (gameState !== 'PLAYING') return;
+
+    player.vy += player.gravity;
+
+    // Trail particles
+    if (Math.random() < 0.65) {
+        trailParticles.push({
+            x: player.x,
+            y: player.y + player.size / 2 + (Math.random() - 0.5) * 10,
+            size: Math.random() * 5 + 2,
+            life: 1.0
+        });
+    }
+
+    // Horizontal Movement & Collisions
+    player.x += player.vx;
+    for (let b of blocks) {
+        if (player.x < b.x + b.w && player.x + player.size > b.x &&
+            player.y < b.y + b.h && player.y + player.size > b.y) {
+            die(); return;
+        }
+    }
+
+    // Vertical Movement & Collisions
+    player.y += player.vy;
+    player.onGround = false;
+    for (let b of blocks) {
+        if (player.x < b.x + b.w && player.x + player.size > b.x &&
+            player.y < b.y + b.h && player.y + player.size > b.y) {
+            if (player.vy > 0) {
+                player.y = b.y - player.size;
+                player.vy = 0;
+                player.onGround = true;
+            } else if (player.vy < 0) {
+                die(); return;
+            }
+        }
+    }
+
+    // Spike Hitbox Collision (generous forgiving boundary)
+    let pRect = { x: player.x + 6, y: player.y + 6, w: player.size - 12, h: player.size - 12 };
+    for (let s of spikes) {
+        let sx = s.x + 8, sy = s.type === 'up' ? s.y + 16 : s.y, sw = 24, sh = 24;
+        if (pRect.x < sx + sw && pRect.x + pRect.w > sx && pRect.y < sy + sh && pRect.y + pRect.h > sy) {
+            die(); return;
+        }
+    }
+
+    // Cube Airborne Rotation & Landing Snap
+    if (!player.onGround) {
+        player.angle += 0.125;
+    } else {
+        player.angle = Math.round(player.angle / (Math.PI / 2)) * (Math.PI / 2);
+    }
+
+    cameraX = player.x - 180;
+
+    // Obstacle-based real progress calculation
+    let passedCount = 0;
+    for (let ox of obstacleXCoords) {
+        if (player.x > ox) passedCount++;
+        else break;
+    }
+
+    // Calculate 0-100% directly from cleared obstacles
+    let rawPercent = Math.floor((passedCount / totalObstacles) * 100);
+    currentProgress = Math.min(100, Math.max(0, rawPercent));
+    
+    uiProgressText.innerText = `PROGRESS: ${currentProgress}%`;
+    uiProgressBar.style.width = `${currentProgress}%`;
+
+    if (currentProgress > bestProgress) {
+        bestProgress = currentProgress;
+        localStorage.setItem('objectRunBest', bestProgress);
+        uiBest.innerText = `BEST: ${bestProgress}%`;
+    }
+
+    if (currentProgress >= 100) {
+        win();
+    }
+}
+
+function drawBackground() {
+    let grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    grad.addColorStop(0, '#060414');
+    grad.addColorStop(0.6, '#130a2a');
+    grad.addColorStop(1, '#051829');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Parallax Mountain Ridges
+    ctx.fillStyle = 'rgba(25, 14, 55, 0.45)';
+    ctx.beginPath();
+    ctx.moveTo(0, canvas.height);
+    for (let x = 0; x <= canvas.width + 100; x += 80) {
+        let peakY = 230 + Math.sin((x + cameraX * 0.18) * 0.007) * 45;
+        ctx.lineTo(x, peakY);
+    }
+    ctx.lineTo(canvas.width, canvas.height);
+    ctx.fill();
+
+    // Floating Neon Background Geometrics
+    ctx.lineWidth = 1.5;
+    for (let d of bgDecorations) {
+        let drawX = (d.x - cameraX * d.speed) % 900;
+        if (drawX < -60) drawX += 900;
+
+        ctx.save();
+        ctx.translate(drawX, d.y);
+        ctx.rotate(d.rot);
+        ctx.strokeStyle = 'rgba(0, 240, 255, 0.12)';
+        if (d.type === 'square') {
+            ctx.strokeRect(-d.size / 2, -d.size / 2, d.size, d.size);
+        } else {
+            ctx.beginPath();
+            ctx.moveTo(0, -d.size / 2);
+            ctx.lineTo(d.size / 2, 0);
+            ctx.lineTo(0, d.size / 2);
+            ctx.lineTo(-d.size / 2, 0);
+            ctx.closePath();
+            ctx.stroke();
+        }
+        ctx.restore();
+    }
+
+    // Grid Floor/Ceiling Accent Lines
+    ctx.strokeStyle = 'rgba(0, 240, 255, 0.06)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    let offX = cameraX % TILE_SIZE;
+    for (let i = 0; i <= canvas.width; i += TILE_SIZE) {
+        ctx.moveTo(i - offX, 0); ctx.lineTo(i - offX, canvas.height);
+    }
+    for (let i = 0; i <= canvas.height; i += TILE_SIZE) {
+        ctx.moveTo(0, i); ctx.lineTo(canvas.width, i);
+    }
+    ctx.stroke();
+}
+
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    drawBackground();
+
+    ctx.save();
+    ctx.translate(-cameraX, 0);
+
+    // Render Neon Trail
+    for (let i = trailParticles.length - 1; i >= 0; i--) {
+        let t = trailParticles[i];
+        t.x -= 1.8;
+        t.life -= 0.04;
+        if (t.life <= 0) {
+            trailParticles.splice(i, 1);
+            continue;
+        }
+        ctx.fillStyle = `rgba(0, 240, 255, ${t.life * 0.4})`;
+        ctx.fillRect(t.x, t.y, t.size, t.size);
+    }
+
+    // Draw Glowing Blocks
+    ctx.shadowBlur = 12;
+    ctx.shadowColor = '#00f0ff';
+    ctx.strokeStyle = '#00f0ff';
+    ctx.fillStyle = '#0a081c';
+    ctx.lineWidth = 2;
+    for (let b of blocks) {
+        if (b.x > cameraX - TILE_SIZE && b.x < cameraX + 850) {
+            ctx.fillRect(b.x, b.y, b.w, b.h);
+            ctx.strokeRect(b.x, b.y, b.w, b.h);
+        }
+    }
+
+    // Draw Spikes (Cyan/Magenta neon triangles)
+    ctx.shadowColor = '#ff00ea';
+    ctx.fillStyle = '#ff00ea';
+    for (let s of spikes) {
+        if (s.x > cameraX - TILE_SIZE && s.x < cameraX + 850) {
+            ctx.beginPath();
+            if (s.type === 'up') {
+                ctx.moveTo(s.x + TILE_SIZE / 2, s.y + 4);
+                ctx.lineTo(s.x + TILE_SIZE - 4, s.y + TILE_SIZE);
+                ctx.lineTo(s.x + 4, s.y + TILE_SIZE);
+            } else {
+                ctx.moveTo(s.x + 4, s.y);
+                ctx.lineTo(s.x + TILE_SIZE - 4, s.y);
+                ctx.lineTo(s.x + TILE_SIZE / 2, s.y + TILE_SIZE - 4);
+            }
+            ctx.closePath();
+            ctx.fill();
+        }
+    }
+
+    // Draw Player Cube
+    if (gameState !== 'GAMEOVER') {
+        ctx.shadowBlur = 14;
+        ctx.shadowColor = '#00f0ff';
+        ctx.fillStyle = '#00f0ff';
+        ctx.save();
+        ctx.translate(player.x + player.size / 2, player.y + player.size / 2);
+        ctx.rotate(player.angle);
+        ctx.fillRect(-player.size / 2, -player.size / 2, player.size, player.size);
+        
+        // Inner glowing core
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(-player.size / 4, -player.size / 4, player.size / 2, player.size / 2);
+        ctx.restore();
+    }
+
+    // Draw Death Scatter Pieces
+    if (gameState === 'GAMEOVER') {
+        ctx.shadowBlur = 8;
+        for (let p of particles) {
+            if (p.life > 0) {
+                p.vy += 0.55;
+                p.x += p.vx;
+                p.y += p.vy;
+                p.rot += p.rotSpeed;
+                p.life -= 0.022;
+
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate(p.rot);
+                ctx.globalAlpha = Math.max(0, p.life);
+                ctx.shadowColor = p.color;
+                ctx.fillStyle = p.color;
+                ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+                ctx.restore();
+            }
+        }
+        ctx.globalAlpha = 1.0;
+    }
+
+    ctx.restore();
+
+    // Start Screen Instruction
+    if (gameState === 'START') {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+        ctx.fillRect(0, 0, 800, 440);
+        ctx.fillStyle = '#00f0ff';
+        ctx.font = '22px Orbitron';
+        ctx.textAlign = 'center';
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = '#00f0ff';
+        ctx.fillText("CLICK OR PRESS SPACE TO RUN", 400, 220);
+        ctx.textAlign = 'left';
+    }
+}
+
+function loop() {
+    update();
+    draw();
+    requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
