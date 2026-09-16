@@ -1,78 +1,75 @@
-<!DOCTYPE html>
+           <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OBJECT RUN 🏃 — Map 3: Dimensional Shift</title>
+<title>OBJECT RUN 🏃 — Map 3: Phantom Abyss 👁️</title>
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&display=swap');
     * { box-sizing: border-box; }
     body {
-        margin: 0; padding: 0; background: #05050f; color: #fff;
+        margin: 0; padding: 0; background: #04020a; color: #fff;
         font-family: 'Orbitron', sans-serif; overflow: hidden; user-select: none;
     }
     #game-container {
         position: relative; width: 800px; height: 440px; margin: 30px auto;
-        box-shadow: 0 0 35px var(--theme-glow, rgba(0, 240, 255, 0.35));
-        border: 2px solid var(--theme-color, #00f0ff88); border-radius: 10px; overflow: hidden;
-        transition: border-color 0.4s ease, box-shadow 0.4s ease;
+        box-shadow: 0 0 35px var(--glow-color, rgba(57, 255, 20, 0.35));
+        border: 2px solid var(--theme-color, #39ff1488); border-radius: 10px; overflow: hidden;
+        transition: border-color 0.4s, box-shadow 0.4s;
     }
-    canvas { display: block; width: 100%; height: 100%; background: #080816; }
+    canvas { display: block; width: 100%; height: 100%; background: #070312; }
     #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
     
     .back-arrow {
-        position: absolute; top: 15px; left: 15px; color: var(--theme-color, #00f0ff);
+        position: absolute; top: 15px; left: 15px; color: var(--theme-color, #39ff14);
         text-decoration: none; display: flex; align-items: center; justify-content: center;
         pointer-events: auto; transition: 0.2s; filter: drop-shadow(0 0 6px currentColor);
     }
-    .back-arrow:hover { transform: scale(1.15) translateX(-2px); filter: drop-shadow(0 0 12px #fff); }
+    .back-arrow:hover { transform: scale(1.15) translateX(-2px); color: #ff00ea; }
 
     #progress-container {
         position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
         width: 380px; text-align: center;
     }
     #progress-text {
-        font-size: 17px; font-weight: 900; color: var(--theme-color, #00f0ff);
+        font-size: 16px; font-weight: 900; color: var(--theme-color, #39ff14);
         text-shadow: 0 0 10px currentColor; letter-spacing: 2px;
-        transition: color 0.4s ease;
     }
     #progress-bar-bg {
         width: 100%; height: 9px; background: rgba(255, 255, 255, 0.12);
-        border: 2px solid var(--theme-color, #00f0ff); border-radius: 6px; overflow: hidden; margin-top: 5px;
-        box-shadow: 0 0 8px var(--theme-glow, rgba(0, 240, 255, 0.3));
-        transition: border-color 0.4s ease;
+        border: 2px solid var(--theme-color, #39ff14); border-radius: 6px; overflow: hidden; margin-top: 5px;
     }
-    #progress-bar-fill {
-        height: 100%; width: 0%; background: var(--theme-color, #00f0ff);
-        box-shadow: 0 0 10px currentColor; transition: background-color 0.4s ease;
-    }
+    #progress-bar-fill { height: 100%; width: 0%; background: var(--theme-color, #39ff14); box-shadow: 0 0 10px currentColor; }
     
     #best {
         position: absolute; top: 14px; right: 20px; font-size: 15px;
-        color: var(--theme-color, #00f0ff); text-shadow: 0 0 8px currentColor;
-        transition: color 0.4s ease;
+        color: var(--theme-color, #39ff14); text-shadow: 0 0 8px currentColor;
     }
 
     .btn {
         position: absolute; padding: 8px 18px; font-family: 'Orbitron', sans-serif;
-        background: #0b0b1a; border: 2px solid var(--theme-color, #00f0ff); color: var(--theme-color, #00f0ff);
+        background: #0e071c; border: 2px solid var(--theme-color, #39ff14); color: var(--theme-color, #39ff14);
         font-size: 13px; font-weight: 700; cursor: pointer; pointer-events: auto;
         border-radius: 6px; transition: 0.2s; text-shadow: 0 0 5px currentColor;
-        box-shadow: 0 0 10px var(--theme-glow, rgba(0, 240, 255, 0.25));
     }
-    .btn:hover { background: var(--theme-color, #00f0ff); color: #000; }
+    .btn:hover { background: var(--theme-color, #39ff14); color: #000; }
     #pauseBtn { bottom: 15px; right: 15px; }
     #resetBtn { bottom: 15px; right: 110px; }
+
+    #mode-indicator {
+        position: absolute; bottom: 18px; left: 20px; font-size: 14px;
+        letter-spacing: 1px; color: var(--theme-color, #39ff14);
+    }
 
     #message-overlay {
         position: absolute; top: 0; left: 0; width: 100%; height: 100%;
         display: none; justify-content: center; align-items: center;
-        flex-direction: column; background: rgba(5, 5, 15, 0.85); gap: 14px; z-index: 10;
+        flex-direction: column; background: rgba(6, 2, 14, 0.88); gap: 14px; z-index: 10;
     }
     #message-text { font-size: 38px; color: #ff0055; text-shadow: 0 0 20px #ff0055; margin-bottom: 6px; }
     .msg-btn { position: relative; pointer-events: auto; font-size: 16px; padding: 10px 24px; }
-    #hubBtn { border-color: #ff00ea; color: #ff00ea; text-shadow: 0 0 6px #ff00ea; box-shadow: 0 0 12px rgba(255, 0, 234, 0.3); }
-    #hubBtn:hover { background: #ff00ea; color: #000; box-shadow: 0 0 20px #ff00ea; }
+    #hubBtn { border-color: #ff00ea; color: #ff00ea; }
+    #hubBtn:hover { background: #ff00ea; color: #000; }
 </style>
 </head>
 <body>
@@ -94,11 +91,12 @@
         </div>
 
         <div id="best">BEST: 0%</div>
+        <div id="mode-indicator">VESSEL: CREEP CUBE</div>
         <button id="resetBtn" class="btn">RESET</button>
         <button id="pauseBtn" class="btn">PAUSE</button>
 
         <div id="message-overlay">
-            <div id="message-text">GAME OVER</div>
+            <div id="message-text">CONSUMED BY SHADOWS</div>
             <button id="overlayActionBtn" class="btn msg-btn">TRY AGAIN</button>
             <button id="hubBtn" class="btn msg-btn" onclick="window.location.href='obstacle.html'">MAP SELECT</button>
         </div>
@@ -106,7 +104,7 @@
 </div>
 
 <audio id="sfx-collision" src="collision.mp3" preload="auto"></audio>
-<audio id="sfx-music" src="music.mp3" loop preload="auto"></audio>
+<audio id="sfx-music" src="map3.mp3" loop preload="auto"></audio>
 
 <script>
 const canvas = document.getElementById('gameCanvas');
@@ -114,6 +112,7 @@ const ctx = canvas.getContext('2d');
 const uiProgressText = document.getElementById('progress-text');
 const uiProgressBar = document.getElementById('progress-bar-fill');
 const uiBest = document.getElementById('best');
+const uiMode = document.getElementById('mode-indicator');
 const pauseBtn = document.getElementById('pauseBtn');
 const resetBtn = document.getElementById('resetBtn');
 const overlayActionBtn = document.getElementById('overlayActionBtn');
@@ -129,14 +128,13 @@ uiBest.innerText = `BEST: ${bestProgress}%`;
 const TILE_SIZE = 40;
 
 /*
-  LEGEND:
+  MAP 3 GRID LAYOUT:
   '.' = Air
-  '#' = Solid Block
+  '#' = Solid Dungeon Stone / Boundary
   '^' = Floor Spike
   'v' = Ceiling Spike
-  'P' = Ship Portal (Turns player into Triangle Ship)
-  'C' = Cube Portal (Turns player back into Square Runner)
-  'M' = Moving Obstacle (Oscillates vertically in Ship sections)
+  'P' = Dimensional Portal (Cube -> Green Ship)
+  'M' = Vertically Oscillating Hazard Block
 */
 const mapGrid = [
     "##########################################################################################################################################################################################################################################################################################################################################################################################################################################################################################",
@@ -147,19 +145,18 @@ const mapGrid = [
     "................................................................................................................................................................###########################..............................................................................................................V............^#..................................C..................................................########################...............^#..................C..................",
     ".....................................................................##.........................................................................................###########################......................#...............................................................M...................................^##..................................C..................................................########################..............^##..................C..................",
     "................................................................##......................................................^.####..................##..............VV..................VV...VV......................#.........................................M........................................................^###.............########################..##..............####..........................VVVV.....VVVVVV....VVVVV.............^###..................##.......^^........",
-    "......................................############.........##............##..............####....................########......##............#......###............................................................................................................................................................^####.............########################......##..........VVVV..................................................P...........^####.............########################",
-    ".................................###^^############^^^###^^^^^^^^^^^^^^^^^^^^^##.......##^^^^..##.....^^......##^^^^^^^^^^^^^^^^^^^^###...#...#^^^^^^^^^^^###.............^^..........P...................^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^........^^^#####.............########################^^^^^^^^^^##.............##......^^.....###..........^^..........##.....P.....^^^^^^#####.............########################",
+    "......................................############.........##............##..............####....................########......##............#......###................................P...........................................................................................................................^####.............########################......##..........VVVV..................................................P...........^####.............########################",
+    ".................................###^^############^^^###^^^^^^^^^^^^^^^^^^^^^##.......##^^^^..##.....^^......##^^^^^^^^^^^^^^^^^^^^###...#...#^^^^^^^^^^^###.............^^............P.................^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^........^^^#####.............########################^^^^^^^^^^##.............##......^^.....###..........^^..........##.....P.....^^^^^^#####.............########################",
     "###########################################################################################################################################################################################################################################################################################################################################################################################################################################################################################"
 ];
-
 let blocks = [];
 let spikes = [];
 let portals = [];
-let movingObstacles = [];
+let movingBlocks = [];
 let obstacleXCoords = [];
 
 function parseLevel() {
-    blocks = []; spikes = []; portals = []; movingObstacles = []; obstacleXCoords = [];
+    blocks = []; spikes = []; portals = []; movingBlocks = []; obstacleXCoords = [];
     const recordedCols = new Set();
 
     for (let r = 0; r < mapGrid.length; r++) {
@@ -170,7 +167,9 @@ function parseLevel() {
 
             if (ch === '#') {
                 blocks.push({ x, y, w: TILE_SIZE, h: TILE_SIZE });
-                if (r < 10 && !recordedCols.has(c)) { obstacleXCoords.push(x); recordedCols.add(c); }
+                if (r > 0 && r < 10 && !recordedCols.has(c)) {
+                    obstacleXCoords.push(x); recordedCols.add(c);
+                }
             } else if (ch === '^') {
                 spikes.push({ x, y, type: 'up' });
                 if (!recordedCols.has(c)) { obstacleXCoords.push(x); recordedCols.add(c); }
@@ -178,11 +177,9 @@ function parseLevel() {
                 spikes.push({ x, y, type: 'down' });
                 if (!recordedCols.has(c)) { obstacleXCoords.push(x); recordedCols.add(c); }
             } else if (ch === 'P') {
-                portals.push({ x, y, toMode: 'SHIP' });
-            } else if (ch === 'C') {
-                portals.push({ x, y, toMode: 'CUBE' });
+                portals.push({ x, y: y - 20, w: 32, h: 90 });
             } else if (ch === 'M') {
-                movingObstacles.push({ x, baseY: y, y: y, size: 36, speed: 2.2, dir: 1, range: 60 });
+                movingBlocks.push({ x, y, baseY: y, w: TILE_SIZE, h: TILE_SIZE, dir: 1, range: 60, speed: 1.8 });
                 if (!recordedCols.has(c)) { obstacleXCoords.push(x); recordedCols.add(c); }
             }
         }
@@ -192,42 +189,50 @@ function parseLevel() {
 parseLevel();
 
 let player = {
-    x: 120, y: 320, size: 32,
+    x: 120, y: 320, size: 34,
     vx: 5.8, vy: 0,
+    mode: 'RUNNER', // 'RUNNER' or 'SHIP'
     gravity: 0.75, jumpForce: -12.4,
-    angle: 0, onGround: false,
-    mode: 'CUBE' // 'CUBE' or 'SHIP'
+    shipLift: -0.85, shipGravity: 0.55,
+    angle: 0, onGround: false
 };
 
-let inputHeld = false;
+let holdingFly = false;
 let cameraX = 0;
 let particles = [];
-let trailParticles = [];
-let portalBurstParticles = [];
+let fireTail = [];
+let shipCyberSparks = [];
 let musicStarted = false;
 let currentProgress = 0;
+let flashTimer = 0;
+let eyeAnimTimer = 0;
 const totalObstacles = Math.max(1, obstacleXCoords.length);
 
 function getTheme(pct) {
-    if (pct >= 75) return { main: '#ff2a4b', glow: 'rgba(255, 42, 75, 0.4)', bg1: '#140306', bg2: '#2a050d' }; // High-tempo Crimson Red
-    if (pct >= 50) return { main: '#b537f2', glow: 'rgba(181, 55, 242, 0.4)', bg1: '#0d0417', bg2: '#200833' }; // Ship Portal Purple
-    return { main: '#00f0ff', glow: 'rgba(0, 240, 255, 0.4)', bg1: '#050614', bg2: '#0b162c' };                 // Classic Cyber Cyan
+    if (pct >= 50) {
+        // Neon Purple Atmosphere for Ship Flight
+        return { main: '#b026ff', glow: 'rgba(176, 38, 255, 0.45)', bg1: '#0d021c', bg2: '#27083b' };
+    }
+    // Dark Brick / Toxic Glow Atmosphere for Runner
+    return { main: '#39ff14', glow: 'rgba(57, 255, 20, 0.45)', bg1: '#04020a', bg2: '#120521' };
 }
 
 function resetGame() {
     player = {
-        x: 120, y: 320, size: 32,
+        x: 120, y: 320, size: 34,
         vx: 5.8, vy: 0,
+        mode: 'RUNNER',
         gravity: 0.75, jumpForce: -12.4,
-        angle: 0, onGround: false,
-        mode: 'CUBE'
+        shipLift: -0.85, shipGravity: 0.55,
+        angle: 0, onGround: false
     };
+    holdingFly = false;
     cameraX = 0;
     particles = [];
-    trailParticles = [];
-    portalBurstParticles = [];
+    fireTail = [];
+    shipCyberSparks = [];
     currentProgress = 0;
-    inputHeld = false;
+    uiMode.innerText = "VESSEL: CREEP CUBE";
     gameState = 'PLAYING';
     msgOverlay.style.display = 'none';
     if (musicStarted) { bgMusic.currentTime = 0; bgMusic.play().catch(() => {}); }
@@ -237,81 +242,62 @@ function die() {
     gameState = 'GAMEOVER';
     hitSound.currentTime = 0; hitSound.play().catch(() => {});
     bgMusic.pause();
-    msgText.innerText = "GAME OVER";
-    msgText.style.color = "#ff0055";
+    msgText.innerText = "CONSUMED BY SHADOWS";
     overlayActionBtn.innerText = "TRY AGAIN";
     msgOverlay.style.display = 'flex';
 
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 24; i++) {
         particles.push({
             x: player.x + player.size / 2, y: player.y + player.size / 2,
-            vx: (Math.random() - 0.5) * 12, vy: (Math.random() - 1.1) * 11,
+            vx: (Math.random() - 0.5) * 13, vy: (Math.random() - 1) * 12,
             size: Math.random() * 8 + 3, rot: Math.random() * Math.PI,
             rotSpeed: (Math.random() - 0.5) * 0.3, life: 1.0,
-            color: i % 2 === 0 ? getTheme(currentProgress).main : '#fff'
+            color: i % 2 === 0 ? '#39ff14' : '#ff0055'
         });
     }
 }
 
 function win() {
     gameState = 'WIN';
-    msgText.innerText = "🎉 MAP 3 COMPLETE! 🎉";
-    msgText.style.color = "#00f0ff";
+    msgText.innerText = "👁️ THE ABYSS HAS BEEN CONQUERED! 👁️";
+    msgText.style.color = "#39ff14";
     overlayActionBtn.innerText = "PLAY AGAIN";
     msgOverlay.style.display = 'flex';
 }
 
-function triggerJumpOrFly() {
+function handleInputStart() {
     if (gameState === 'START') {
         musicStarted = true;
         bgMusic.play().catch(() => {});
         gameState = 'PLAYING';
     }
-    if (gameState === 'PLAYING' && player.mode === 'CUBE' && player.onGround) {
+    holdingFly = true;
+    if (player.mode === 'RUNNER' && player.onGround) {
         player.vy = player.jumpForce;
         player.onGround = false;
     }
 }
 
+function handleInputEnd() { holdingFly = false; }
+
 window.addEventListener('keydown', (e) => {
-    if (e.code === 'Space' || e.code === 'ArrowUp') {
-        e.preventDefault();
-        inputHeld = true;
-        triggerJumpOrFly();
-    }
+    if (e.code === 'Space' || e.code === 'ArrowUp') { e.preventDefault(); handleInputStart(); }
 });
-
 window.addEventListener('keyup', (e) => {
-    if (e.code === 'Space' || e.code === 'ArrowUp') inputHeld = false;
+    if (e.code === 'Space' || e.code === 'ArrowUp') handleInputEnd();
 });
-
 window.addEventListener('mousedown', (e) => {
-    if (e.target.tagName === 'CANVAS') {
-        inputHeld = true;
-        triggerJumpOrFly();
-    }
+    if (e.target.tagName === 'CANVAS') handleInputStart();
 });
-
-window.addEventListener('mouseup', () => { inputHeld = false; });
-window.addEventListener('touchstart', (e) => {
-    if (e.target.tagName === 'CANVAS') {
-        inputHeld = true;
-        triggerJumpOrFly();
-    }
-});
-window.addEventListener('touchend', () => { inputHeld = false; });
+window.addEventListener('mouseup', handleInputEnd);
 
 function togglePause() {
     if (gameState === 'PLAYING') {
-        gameState = 'PAUSED';
-        bgMusic.pause();
-        msgText.innerText = "PAUSED";
-        msgText.style.color = "#ffffff";
-        overlayActionBtn.innerText = "RESUME";
-        msgOverlay.style.display = 'flex';
+        gameState = 'PAUSED'; bgMusic.pause();
+        msgText.innerText = "PAUSED"; msgText.style.color = "#ffffff";
+        overlayActionBtn.innerText = "RESUME"; msgOverlay.style.display = 'flex';
     } else if (gameState === 'PAUSED') {
-        gameState = 'PLAYING';
-        bgMusic.play().catch(() => {});
+        gameState = 'PLAYING'; bgMusic.play().catch(() => {});
         msgOverlay.style.display = 'none';
     }
 }
@@ -326,106 +312,100 @@ overlayActionBtn.addEventListener('click', () => {
 function update() {
     if (gameState !== 'PLAYING') return;
 
-    // Movement & Physics based on current mode
-    if (player.mode === 'CUBE') {
+    eyeAnimTimer += 0.05;
+
+    // Moving hazard blocks
+    for (let mb of movingBlocks) {
+        mb.y += mb.speed * mb.dir;
+        if (Math.abs(mb.y - mb.baseY) > mb.range) mb.dir *= -1;
+    }
+
+    // Player Physics & Trail System
+    if (player.mode === 'RUNNER') {
         player.vy += player.gravity;
-        if (!player.onGround) player.angle += 0.125;
-        else player.angle = Math.round(player.angle / (Math.PI / 2)) * (Math.PI / 2);
-    } else if (player.mode === 'SHIP') {
-        // GD Ship Physics: Hold to fly, release to fall
-        const shipUpwardThrust = -0.68;
-        const shipGravity = 0.46;
-        const maxVerticalSpeed = 6.8;
-
-        if (inputHeld) {
-            player.vy += shipUpwardThrust;
+        if (!player.onGround) {
+            player.angle += 0.125;
+            // Fiery jet arc trail when jumping (matches the reference image)
+            fireTail.push({
+                x: player.x,
+                y: player.y + player.size * 0.7,
+                vx: -3.5 - Math.random() * 1.5,
+                vy: (Math.random() - 0.5) * 1.5,
+                size: Math.random() * 7 + 4,
+                life: 1.0
+            });
         } else {
-            player.vy += shipGravity;
+            player.angle = Math.round(player.angle / (Math.PI / 2)) * (Math.PI / 2);
         }
-        player.vy = Math.max(-maxVerticalSpeed, Math.min(maxVerticalSpeed, player.vy));
+    } else { // SHIP FLIGHT MODE
+        if (holdingFly) {
+            player.vy += player.shipLift;
+            if (player.vy < -6.5) player.vy = -6.5;
+        } else {
+            player.vy += player.shipGravity;
+            if (player.vy > 6.5) player.vy = 6.5;
+        }
+        player.angle = player.vy * 0.08;
 
-        // Pitch ship in the direction of flight
-        player.angle = player.vy * 0.07;
-
-        // Thrust flame particles
-        trailParticles.push({
+        // Toxic Green/Cyan ship particles
+        shipCyberSparks.push({
             x: player.x,
-            y: player.y + player.size / 2 + (Math.random() - 0.5) * 6,
-            vx: -3.5 - Math.random() * 2,
-            vy: (Math.random() - 0.5) * 1.5,
+            y: player.y + player.size / 2,
+            vx: -4 - Math.random() * 2,
+            vy: (Math.random() - 0.5) * 2.5,
             size: Math.random() * 5 + 2,
-            life: 1.0,
-            color: inputHeld ? '#ffaa00' : '#b537f2'
+            life: 0.8
         });
     }
 
-    player.x += player.vx;
-    player.y += player.vy;
-
-    // Update Moving Obstacles
-    for (let mo of movingObstacles) {
-        mo.y += mo.speed * mo.dir;
-        if (mo.y > mo.baseY + mo.range) mo.dir = -1;
-        if (mo.y < mo.baseY - mo.range) mo.dir = 1;
-
-        // Moving obstacle collision
-        if (player.x < mo.x + mo.size && player.x + player.size > mo.x &&
-            player.y < mo.y + mo.size && player.y + player.size > mo.y) {
-            die(); return;
-        }
-    }
-
-    // Portal Touch Detection
-    for (let p of portals) {
-        if (player.x < p.x + 30 && player.x + player.size > p.x &&
-            player.y < p.y + 70 && player.y + player.size > p.y) {
-            if (player.mode !== p.toMode) {
-                player.mode = p.toMode;
-                // Burst effect
-                for (let i = 0; i < 24; i++) {
-                    portalBurstParticles.push({
-                        x: p.x + 15, y: p.y + 35,
-                        vx: (Math.random() - 0.5) * 8, vy: (Math.random() - 0.5) * 8,
-                        size: Math.random() * 6 + 2, life: 1.0,
-                        color: p.toMode === 'SHIP' ? '#ff00ea' : '#00f0ff'
-                    });
-                }
+    // Portal Touch & Transformation
+    for (let pt of portals) {
+        if (player.x < pt.x + pt.w && player.x + player.size > pt.x &&
+            player.y < pt.y + pt.h && player.y + player.size > pt.y) {
+            if (player.mode !== 'SHIP') {
+                player.mode = 'SHIP';
+                uiMode.innerText = "VESSEL: PHANTOM SHIP";
+                flashTimer = 18;
+                player.angle = 0;
             }
         }
     }
 
-    // Block Collisions
-    player.onGround = false;
-    for (let b of blocks) {
+    // Horizontal Movement & Collisions
+    player.x += player.vx;
+    for (let b of blocks.concat(movingBlocks)) {
         if (player.x < b.x + b.w && player.x + player.size > b.x &&
             player.y < b.y + b.h && player.y + player.size > b.y) {
-            if (player.mode === 'CUBE') {
-                if (player.vy > 0 && player.y + player.size - player.vy <= b.y + 12) {
-                    player.y = b.y - player.size;
-                    player.vy = 0;
-                    player.onGround = true;
-                } else {
-                    die(); return;
-                }
+            die(); return;
+        }
+    }
+
+    // Vertical Movement & Collisions
+    player.y += player.vy;
+    player.onGround = false;
+    for (let b of blocks.concat(movingBlocks)) {
+        if (player.x < b.x + b.w && player.x + player.size > b.x &&
+            player.y < b.y + b.h && player.y + player.size > b.y) {
+            if (player.mode === 'SHIP') {
+                die(); return; // Ship mode direct crash
+            }
+            if (player.vy > 0 && player.y + player.size - player.vy <= b.y + 14) {
+                player.y = b.y - player.size;
+                player.vy = 0;
+                player.onGround = true;
             } else {
-                // Ship mode: Touching blocks from any angle is fatal
                 die(); return;
             }
         }
     }
 
-    // Spike Collisions
-    let pRect = { x: player.x + 5, y: player.y + 5, w: player.size - 10, h: player.size - 10 };
+    // Spike Collision
+    let pRect = { x: player.x + 6, y: player.y + 6, w: player.size - 12, h: player.size - 12 };
     for (let sp of spikes) {
-        let sx = sp.x + 8, sy = sp.type === 'up' ? sp.y + 14 : sp.y, sw = 24, sh = 26;
+        let sx = sp.x + 8, sy = sp.type === 'up' ? sp.y + 16 : sp.y, sw = 24, sh = 24;
         if (pRect.x < sx + sw && pRect.x + pRect.w > sx && pRect.y < sy + sh && pRect.y + pRect.h > sy) {
             die(); return;
         }
-    }
-
-    // Ceiling & Floor Screen Bounds for Ship
-    if (player.y < 0 || player.y > canvas.height - player.size) {
-        die(); return;
     }
 
     cameraX = player.x - 180;
@@ -436,7 +416,6 @@ function update() {
         if (player.x > ox) passedCount++;
         else break;
     }
-
     let rawPercent = Math.floor((passedCount / totalObstacles) * 100);
     currentProgress = Math.min(100, Math.max(0, rawPercent));
     
@@ -459,37 +438,111 @@ function drawBackground(theme) {
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Subtle Speed Lines during Ship Flight
-    if (player.mode === 'SHIP') {
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-        ctx.lineWidth = 1.5;
-        for (let i = 0; i < 6; i++) {
-            let lineY = (i * 70 + (cameraX * 0.5)) % canvas.height;
-            ctx.beginPath();
-            ctx.moveTo(0, lineY);
-            ctx.lineTo(canvas.width, lineY);
-            ctx.stroke();
+    // Dark dungeon brick backdrop pattern (matches reference image environment)
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.035)';
+    ctx.lineWidth = 1;
+    let bW = 60, bH = 30;
+    let offX = cameraX % (bW * 2);
+    for (let y = 0; y < canvas.height; y += bH) {
+        let rowShift = (Math.floor(y / bH) % 2 === 0) ? 0 : bW;
+        for (let x = -bW * 2; x < canvas.width + bW * 2; x += bW) {
+            ctx.strokeRect(x - offX + rowShift, y, bW, bH);
         }
     }
+}
 
-    // Grid Accent Lines
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
-    ctx.lineWidth = 1;
+// Custom Rendering of the Creepy Face Cube (Geometry Dash Style Icon)
+function drawCreepyCube(x, y, size, angle) {
+    ctx.save();
+    ctx.translate(x + size / 2, y + size / 2);
+    ctx.rotate(angle);
+
+    // Green outer glow aura
+    ctx.shadowBlur = 12;
+    ctx.shadowColor = '#39ff14';
+
+    // Base lime-green face block
+    ctx.fillStyle = '#6eff14';
+    ctx.fillRect(-size / 2, -size / 2, size, size);
+
+    // Outer dark outline
+    ctx.strokeStyle = '#052402';
+    ctx.lineWidth = 2.5;
+    ctx.strokeRect(-size / 2, -size / 2, size, size);
+
+    // Inner dark hollows (The sinister eyes & jagged mouth from reference)
+    ctx.fillStyle = '#052402';
+
+    // Left Square Eye Socket
+    let eyeSize = size * 0.32;
+    ctx.fillRect(-size * 0.38, -size * 0.38, eyeSize, eyeSize);
+
+    // Right Square Eye Socket
+    ctx.fillRect(size * 0.08, -size * 0.38, eyeSize, eyeSize);
+
+    // Glowing Animated Irises
+    let irisYShift = Math.sin(eyeAnimTimer) * 1.5;
+    ctx.fillStyle = '#ffff66';
+    ctx.fillRect(-size * 0.28, -size * 0.28 + irisYShift, eyeSize * 0.45, eyeSize * 0.45);
+    ctx.fillRect(size * 0.18, -size * 0.28 + irisYShift, eyeSize * 0.45, eyeSize * 0.45);
+
+    // Jagged Creepy Mouth Pattern (Interlocking teeth cutout)
+    ctx.fillStyle = '#052402';
     ctx.beginPath();
-    let offX = cameraX % TILE_SIZE;
-    for (let i = 0; i <= canvas.width; i += TILE_SIZE) {
-        ctx.moveTo(i - offX, 0); ctx.lineTo(i - offX, canvas.height);
-    }
-    for (let i = 0; i <= canvas.height; i += TILE_SIZE) {
-        ctx.moveTo(0, i); ctx.lineTo(canvas.width, i);
-    }
+    ctx.moveTo(-size * 0.35, size * 0.15);
+    ctx.lineTo(size * 0.35, size * 0.15);
+    ctx.lineTo(size * 0.35, size * 0.42);
+    ctx.lineTo(size * 0.18, size * 0.42);
+    ctx.lineTo(size * 0.18, size * 0.26);
+    ctx.lineTo(size * 0.02, size * 0.26);
+    ctx.lineTo(size * 0.02, size * 0.42);
+    ctx.lineTo(-size * 0.18, size * 0.42);
+    ctx.lineTo(-size * 0.18, size * 0.26);
+    ctx.lineTo(-size * 0.35, size * 0.26);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.restore();
+}
+
+// Custom Rendering of the Greenish Phantom Triangle Ship
+function drawPhantomShip(x, y, size, angle) {
+    ctx.save();
+    ctx.translate(x + size / 2, y + size / 2);
+    ctx.rotate(angle);
+
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = '#39ff14';
+
+    // Sharp Triangle Hull
+    ctx.fillStyle = '#52ff14';
+    ctx.strokeStyle = '#052402';
+    ctx.lineWidth = 2.5;
+
+    ctx.beginPath();
+    ctx.moveTo(size * 0.6, 0); // Front beak
+    ctx.lineTo(-size * 0.55, -size * 0.45); // Upper fin
+    ctx.lineTo(-size * 0.3, 0); // Rear thruster inset
+    ctx.lineTo(-size * 0.55, size * 0.45); // Lower fin
+    ctx.closePath();
+    ctx.fill();
     ctx.stroke();
+
+    // Creepy central glowing eye in cockpit
+    ctx.fillStyle = '#052402';
+    ctx.fillRect(-size * 0.15, -size * 0.15, size * 0.35, size * 0.3);
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(size * 0.02, 0, 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
 }
 
 function draw() {
     const theme = getTheme(currentProgress);
     document.documentElement.style.setProperty('--theme-color', theme.main);
-    document.documentElement.style.setProperty('--theme-glow', theme.glow);
+    document.documentElement.style.setProperty('--glow-color', theme.glow);
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     drawBackground(theme);
@@ -497,77 +550,57 @@ function draw() {
     ctx.save();
     ctx.translate(-cameraX, 0);
 
-    // Render Transformation Portals
-    for (let p of portals) {
+    // Render Fire Arc Trail for Cube Mode
+    for (let i = fireTail.length - 1; i >= 0; i--) {
+        let f = fireTail[i];
+        f.x += f.vx; f.y += f.vy; f.life -= 0.045;
+        if (f.life <= 0) { fireTail.splice(i, 1); continue; }
+        ctx.fillStyle = `rgba(255, ${Math.floor(f.life * 140)}, 0, ${f.life})`;
+        ctx.fillRect(f.x, f.y, f.size, f.size);
+    }
+
+    // Render Ship Cyber Sparks
+    for (let i = shipCyberSparks.length - 1; i >= 0; i--) {
+        let s = shipCyberSparks[i];
+        s.x += s.vx; s.y += s.vy; s.life -= 0.04;
+        if (s.life <= 0) { shipCyberSparks.splice(i, 1); continue; }
+        ctx.fillStyle = `rgba(57, 255, 20, ${s.life})`;
+        ctx.fillRect(s.x, s.y, s.size, s.size);
+    }
+
+    // Dimensional Portals
+    for (let pt of portals) {
         ctx.save();
-        let portalGlow = p.toMode === 'SHIP' ? '#ff00ea' : '#00f0ff';
-        ctx.shadowBlur = 18;
-        ctx.shadowColor = portalGlow;
-        ctx.strokeStyle = portalGlow;
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = '#ff00ea';
+        ctx.strokeStyle = '#ff00ea';
         ctx.lineWidth = 4;
-        
-        // Oval Portal Ring
+        ctx.strokeRect(pt.x, pt.y, pt.w, pt.h);
+        ctx.fillStyle = 'rgba(255, 0, 234, 0.28)';
+        ctx.fillRect(pt.x, pt.y, pt.w, pt.h);
+
+        // Rotating portal core ring
         ctx.beginPath();
-        ctx.ellipse(p.x + 15, p.y + 40, 14, 45, 0, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+        ctx.arc(pt.x + pt.w / 2, pt.y + pt.h / 2, 12, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffffff';
         ctx.fill();
         ctx.restore();
     }
 
-    // Render Trail / Exhaust Particles
-    for (let i = trailParticles.length - 1; i >= 0; i--) {
-        let t = trailParticles[i];
-        t.x += t.vx || -1.5;
-        t.y += t.vy || 0;
-        t.life -= 0.035;
-        if (t.life <= 0) {
-            trailParticles.splice(i, 1);
-            continue;
-        }
-        ctx.fillStyle = t.color;
-        ctx.globalAlpha = Math.max(0, t.life);
-        ctx.fillRect(t.x, t.y, t.size, t.size);
-    }
-    ctx.globalAlpha = 1.0;
-
-    // Render Portal Burst Particles
-    for (let i = portalBurstParticles.length - 1; i >= 0; i--) {
-        let pb = portalBurstParticles[i];
-        pb.x += pb.vx; pb.y += pb.vy; pb.life -= 0.03;
-        if (pb.life <= 0) { portalBurstParticles.splice(i, 1); continue; }
-        ctx.fillStyle = pb.color;
-        ctx.globalAlpha = Math.max(0, pb.life);
-        ctx.fillRect(pb.x, pb.y, pb.size, pb.size);
-    }
-    ctx.globalAlpha = 1.0;
-
-    // Render Blocks
+    // Blocks & Oscillating Hazards
     ctx.shadowBlur = 10;
     ctx.shadowColor = theme.main;
     ctx.strokeStyle = theme.main;
-    ctx.fillStyle = '#0a0a18';
+    ctx.fillStyle = '#0a0517';
     ctx.lineWidth = 2;
-    for (let b of blocks) {
+    for (let b of blocks.concat(movingBlocks)) {
         if (b.x > cameraX - TILE_SIZE && b.x < cameraX + 850) {
             ctx.fillRect(b.x, b.y, b.w, b.h);
             ctx.strokeRect(b.x, b.y, b.w, b.h);
         }
     }
 
-    // Render Moving Obstacles
-    for (let mo of movingObstacles) {
-        if (mo.x > cameraX - TILE_SIZE && mo.x < cameraX + 850) {
-            ctx.shadowBlur = 14;
-            ctx.shadowColor = '#ffaa00';
-            ctx.fillStyle = '#ffaa00';
-            ctx.fillRect(mo.x, mo.y, mo.size, mo.size);
-            ctx.strokeStyle = '#fff';
-            ctx.strokeRect(mo.x + 3, mo.y + 3, mo.size - 6, mo.size - 6);
-        }
-    }
-
-    // Render Spikes (Floor & Ceiling)
+    // Spikes (Floor & Ceiling)
     ctx.shadowColor = '#ff0055';
     ctx.fillStyle = '#ff0055';
     for (let sp of spikes) {
@@ -587,70 +620,46 @@ function draw() {
         }
     }
 
-    // Render Player (CUBE vs. SHIP TRIANGLE)
+    // Render Player Vessel
     if (gameState !== 'GAMEOVER') {
-        ctx.save();
-        ctx.translate(player.x + player.size / 2, player.y + player.size / 2);
-        ctx.rotate(player.angle);
-        ctx.shadowBlur = 15;
-
-        if (player.mode === 'CUBE') {
-            ctx.shadowColor = '#00f0ff';
-            ctx.fillStyle = '#00f0ff';
-            ctx.fillRect(-player.size / 2, -player.size / 2, player.size, player.size);
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(-player.size / 4, -player.size / 4, player.size / 2, player.size / 2);
+        if (player.mode === 'RUNNER') {
+            drawCreepyCube(player.x, player.y, player.size, player.angle);
         } else {
-            // Triangle Flying Ship Shape
-            ctx.shadowColor = '#b537f2';
-            ctx.fillStyle = '#b537f2';
-            ctx.beginPath();
-            ctx.moveTo(player.size / 2 + 4, 0);                 // Ship Nose
-            ctx.lineTo(-player.size / 2, -player.size / 2);     // Top Wing
-            ctx.lineTo(-player.size / 3, 0);                    // Thruster Indent
-            ctx.lineTo(-player.size / 2, player.size / 2);      // Bottom Wing
-            ctx.closePath();
-            ctx.fill();
-
-            // Cockpit Window
-            ctx.fillStyle = '#00f0ff';
-            ctx.beginPath();
-            ctx.arc(0, 0, 4.5, 0, Math.PI * 2);
-            ctx.fill();
+            drawPhantomShip(player.x, player.y, player.size, player.angle);
         }
-        ctx.restore();
     }
 
-    // Render Death Scatter Pieces
+    // Death Scatter Explosion
     if (gameState === 'GAMEOVER') {
-        ctx.shadowBlur = 8;
         for (let p of particles) {
             if (p.life > 0) {
-                p.vy += 0.55; p.x += p.vx; p.y += p.vy;
-                p.rot += p.rotSpeed; p.life -= 0.022;
+                p.x += p.vx; p.y += p.vy; p.rot += p.rotSpeed; p.life -= 0.022;
                 ctx.save();
                 ctx.translate(p.x, p.y);
                 ctx.rotate(p.rot);
-                ctx.globalAlpha = Math.max(0, p.life);
-                ctx.shadowColor = p.color; ctx.fillStyle = p.color;
+                ctx.fillStyle = p.color;
                 ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
                 ctx.restore();
             }
         }
-        ctx.globalAlpha = 1.0;
     }
 
     ctx.restore();
 
+    // Portal Flash
+    if (flashTimer > 0) {
+        ctx.fillStyle = `rgba(255, 255, 255, ${flashTimer / 25})`;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        flashTimer--;
+    }
+
     if (gameState === 'START') {
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
         ctx.fillRect(0, 0, 800, 440);
         ctx.fillStyle = theme.main;
-        ctx.font = '22px Orbitron';
+        ctx.font = '20px Orbitron';
         ctx.textAlign = 'center';
-        ctx.shadowBlur = 12; ctx.shadowColor = theme.main;
-        ctx.fillText("SPACE / CLICK: JUMP & FLY SHIP", 400, 220);
-        ctx.textAlign = 'left';
+        ctx.fillText("SPACE OR CLICK TO RUN & SOAR", 400, 220);
     }
 }
 
