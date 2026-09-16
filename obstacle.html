@@ -27,7 +27,6 @@
             position: relative;
         }
 
-        /* Subtle Background Grid Lines */
         .grid-overlay {
             position: absolute;
             top: 0;
@@ -42,14 +41,13 @@
             z-index: 0;
         }
 
-        /* Ambient Glow Blobs */
         .ambient-glow {
             position: absolute;
             width: 35vw;
             height: 35vw;
             border-radius: 50%;
             filter: blur(90px);
-            opacity: 0.25;
+            opacity: 0.22;
             pointer-events: none;
             z-index: 0;
         }
@@ -66,7 +64,12 @@
             background: #ff00ea;
         }
 
-        /* Top-Left Back Arrow */
+        .glow-orange {
+            top: 40%;
+            left: 35%;
+            background: #ff5500;
+        }
+
         .back-arrow {
             position: absolute;
             top: 25px;
@@ -87,33 +90,31 @@
             filter: drop-shadow(0 0 12px #ff00ea);
         }
 
-        /* Main Container */
         .container {
             position: relative;
             z-index: 1;
-            max-width: 820px;
-            width: 90%;
+            max-width: 950px;
+            width: 92%;
             padding: 40px 20px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 36px;
+            gap: 32px;
         }
 
         h1 {
             font-family: 'Orbitron', sans-serif;
-            font-size: 2.6rem;
+            font-size: 2.5rem;
             letter-spacing: 2px;
             text-transform: uppercase;
-            text-shadow: 0 0 15px rgba(0, 255, 255, 0.5), 0 0 30px rgba(0, 255, 255, 0.2);
+            text-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
             line-height: 1.2;
         }
 
-        /* Map Buttons Layout */
         .map-selection {
             display: flex;
             flex-wrap: wrap;
-            gap: 28px;
+            gap: 22px;
             justify-content: center;
             width: 100%;
         }
@@ -123,14 +124,14 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            width: 320px;
-            height: 125px;
-            background: rgba(10, 15, 30, 0.65);
+            width: 270px;
+            height: 120px;
+            background: rgba(10, 15, 30, 0.7);
             border: 2px solid;
             border-radius: 14px;
             text-decoration: none;
             font-family: 'Orbitron', sans-serif;
-            font-size: 1.25rem;
+            font-size: 1.15rem;
             font-weight: 700;
             color: #ffffff;
             backdrop-filter: blur(8px);
@@ -138,15 +139,25 @@
                         box-shadow 0.25s ease,
                         border-color 0.25s ease,
                         background-color 0.25s ease;
+            padding: 10px;
+            gap: 6px;
         }
 
-        /* Map 1: Cyan Theme */
+        .map-card small {
+            font-size: 0.75rem;
+            font-family: 'Segoe UI', sans-serif;
+            font-weight: 600;
+            opacity: 0.8;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        /* Map 1: Cyan */
         .btn-map1 {
             border-color: #00f0ff;
             box-shadow: 0 0 15px rgba(0, 240, 255, 0.25), inset 0 0 10px rgba(0, 240, 255, 0.1);
             text-shadow: 0 0 8px #00f0ff;
         }
-
         .btn-map1:hover {
             transform: translateY(-6px) scale(1.04);
             background: rgba(0, 240, 255, 0.12);
@@ -154,39 +165,48 @@
             border-color: #7df9ff;
         }
 
-        /* Map 2: Magenta / Hot Pink Theme */
+        /* Map 2: Fire Orange */
         .btn-map2 {
+            border-color: #ff5500;
+            box-shadow: 0 0 15px rgba(255, 85, 0, 0.25), inset 0 0 10px rgba(255, 85, 0, 0.1);
+            text-shadow: 0 0 8px #ff5500;
+        }
+        .btn-map2:hover {
+            transform: translateY(-6px) scale(1.04);
+            background: rgba(255, 85, 0, 0.12);
+            box-shadow: 0 12px 24px rgba(255, 85, 0, 0.4), inset 0 0 18px rgba(255, 85, 0, 0.25);
+            border-color: #ff8833;
+        }
+
+        /* Map 3: Shift / Magenta */
+        .btn-map3 {
             border-color: #ff00ea;
             box-shadow: 0 0 15px rgba(255, 0, 234, 0.25), inset 0 0 10px rgba(255, 0, 234, 0.1);
             text-shadow: 0 0 8px #ff00ea;
         }
-
-        .btn-map2:hover {
+        .btn-map3:hover {
             transform: translateY(-6px) scale(1.04);
             background: rgba(255, 0, 234, 0.12);
             box-shadow: 0 12px 24px rgba(255, 0, 234, 0.4), inset 0 0 18px rgba(255, 0, 234, 0.25);
             border-color: #ff66f0;
         }
 
-        /* Description Box */
         .info-card {
             background: rgba(255, 255, 255, 0.04);
             border: 1px solid rgba(255, 255, 255, 0.09);
-            padding: 24px 30px;
+            padding: 22px 28px;
             border-radius: 12px;
             backdrop-filter: blur(6px);
             line-height: 1.6;
-            font-size: 1.05rem;
+            font-size: 1rem;
             color: #d1d5db;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-            max-width: 680px;
+            max-width: 760px;
         }
 
-        @media (max-width: 650px) {
+        @media (max-width: 860px) {
+            .map-card { width: 100%; max-width: 360px; height: 105px; }
             h1 { font-size: 1.9rem; }
-            .map-card { width: 100%; height: 105px; font-size: 1.1rem; }
-            .info-card { font-size: 0.95rem; padding: 18px 20px; }
-            .back-arrow { top: 18px; left: 18px; }
         }
     </style>
 </head>
@@ -195,8 +215,8 @@
     <div class="grid-overlay"></div>
     <div class="ambient-glow glow-cyan"></div>
     <div class="ambient-glow glow-magenta"></div>
+    <div class="ambient-glow glow-orange"></div>
 
-    <!-- Top Left Back Arrow to Main Hub -->
     <a href="index.html" class="back-arrow" title="Back to Game Hub">
         <svg viewBox="0 0 24 24" width="30" height="30" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round">
             <line x1="19" y1="12" x2="5" y2="12"></line>
@@ -207,27 +227,30 @@
     <div class="container">
         <h1>OBJECT RUN 🏃<br><span style="font-size: 0.75em; color: #00f0ff;">Choose Your Map</span></h1>
 
-        <!-- Map Navigation Buttons -->
         <div class="map-selection">
             <a href="obstacle-map1.html" class="map-card btn-map1">
                 Map 1: Classic Run
+                <small>Neon Rhythm • Easy</small>
             </a>
             <a href="obstacle-map2.html" class="map-card btn-map2">
-                Map 2: Lava Ruins
+                Map 2: Volcanic Ruins
+                <small>Molten Hazards • Hard</small>
+            </a>
+            <a href="obstacle-map3.html" class="map-card btn-map3">
+                Map 3: Dimensional Shift
+                <small>Cube + Ship Flight • Expert</small>
             </a>
         </div>
 
-        <!-- Informational Section -->
         <div class="info-card">
             <p>
-                Pick your challenge! Classic Run offers the original course, while Neon Challenge brings a harder, glowing map. More maps can be added here in the future.
+                Pick your challenge! <strong>Classic Run</strong> introduces rhythm jump fundamentals, <strong>Volcanic Ruins</strong> brings tight jumps over molten lava pits, and <strong>Dimensional Shift</strong> adds portal transformations into rocket flight.
             </p>
         </div>
     </div>
 
     <script>
-        // Optional subtle hover sound or logging hooks can be placed here
-        console.log("OBJECT RUN: Map selector loaded successfully.");
+        console.log("Map selection loaded. Ready to launch Map 1, 2, or 3.");
     </script>
 </body>
 </html>
