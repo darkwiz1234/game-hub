@@ -3,179 +3,504 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Game Hub 🎮</title>
+    <title>NEON ARCADE HUB ⚡</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Segoe+UI:wght@400;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;900&family=Inter:wght@400;500;700&display=swap');
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
+        :root {
+            --neon-cyan: #00f0ff;
+            --neon-pink: #ff007f;
+            --neon-purple: #b026ff;
+            --neon-orange: #ff5500;
         }
 
         body {
-            background: linear-gradient(135deg, #050614 0%, #110b27 50%, #051b2c 100%);
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #050614 0%, #0c0924 50%, #051424 100%);
             color: #ffffff;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
             min-height: 100vh;
-            text-align: center;
             overflow-x: hidden;
-        }
-
-        /* Ambient Background Elements */
-        .ambient-light {
-            position: absolute;
-            width: 40vw;
-            height: 40vw;
-            border-radius: 50%;
-            filter: blur(100px);
-            z-index: 0;
-            opacity: 0.3;
-            pointer-events: none;
-        }
-
-        .light-1 {
-            top: -10%;
-            left: -10%;
-            background: #00ffff;
-        }
-
-        .light-2 {
-            bottom: -10%;
-            right: -10%;
-            background: #ff00ff;
-        }
-
-        /* Main Content Container */
-        .container {
             position: relative;
-            z-index: 1;
-            max-width: 800px;
-            width: 90%;
-            padding: 40px 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 40px;
         }
 
-        h1 {
+        .orbitron {
             font-family: 'Orbitron', sans-serif;
-            font-size: 3rem;
-            letter-spacing: 3px;
-            text-transform: uppercase;
-            text-shadow: 0 0 15px rgba(0, 255, 255, 0.5), 0 0 30px rgba(0, 255, 255, 0.3);
-            margin-bottom: 10px;
         }
 
-        /* Button Container */
-        .game-links {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 30px;
-            justify-content: center;
+        /* Ambient animated grid lines */
+        .grid-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
             width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(0, 240, 255, 0.035) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 0, 127, 0.035) 1px, transparent 1px);
+            background-size: 45px 45px;
+            pointer-events: none;
+            z-index: 0;
         }
 
-        /* Game Buttons */
-        .game-btn {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            width: 300px;
-            height: 120px;
-            background: rgba(10, 15, 30, 0.6);
-            border: 2px solid;
-            border-radius: 15px;
-            text-decoration: none;
-            font-family: 'Orbitron', sans-serif;
-            font-size: 1.2rem;
-            font-weight: 700;
-            color: #fff;
-            backdrop-filter: blur(10px);
-            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        /* Ambient background glow orbs */
+        .ambient-glow {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(110px);
+            opacity: 0.18;
+            pointer-events: none;
+            z-index: 0;
         }
 
-        .btn-reflex {
-            border-color: #ffd900;
-            box-shadow: 0 0 15px rgba(255, 217, 0, 0.2), inset 0 0 10px rgba(255, 217, 0, 0.1);
-            text-shadow: 0 0 8px #ffd900;
+        /* Glassmorphism cards */
+        .neon-card {
+            background: rgba(12, 16, 36, 0.75);
+            backdrop-filter: blur(12px);
+            border-radius: 14px;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            overflow: hidden;
         }
 
-        .btn-reflex:hover {
-            transform: translateY(-8px) scale(1.05);
-            background: rgba(255, 217, 0, 0.1);
-            box-shadow: 0 15px 25px rgba(255, 217, 0, 0.4), inset 0 0 20px rgba(255, 217, 0, 0.2);
+        .neon-card:hover {
+            transform: translateY(-6px);
         }
 
-        .btn-obstacle {
-            border-color: #00ffff;
-            box-shadow: 0 0 15px rgba(0, 255, 255, 0.2), inset 0 0 10px rgba(0, 255, 255, 0.1);
-            text-shadow: 0 0 8px #00ffff;
+        .card-cyan {
+            border: 2px solid rgba(0, 240, 255, 0.35);
+            box-shadow: 0 4px 20px rgba(0, 240, 255, 0.12);
+        }
+        .card-cyan:hover {
+            border-color: #00f0ff;
+            box-shadow: 0 12px 35px rgba(0, 240, 255, 0.38);
         }
 
-        .btn-obstacle:hover {
-            transform: translateY(-8px) scale(1.05);
-            background: rgba(0, 255, 255, 0.1);
-            box-shadow: 0 15px 25px rgba(0, 255, 255, 0.4), inset 0 0 20px rgba(0, 255, 255, 0.2);
-            border-color: #ff00ff; /* Shifts to magenta on hover */
-            text-shadow: 0 0 8px #ff00ff;
+        .card-pink {
+            border: 2px solid rgba(255, 0, 127, 0.35);
+            box-shadow: 0 4px 20px rgba(255, 0, 127, 0.12);
+        }
+        .card-pink:hover {
+            border-color: #ff007f;
+            box-shadow: 0 12px 35px rgba(255, 0, 127, 0.38);
         }
 
-        /* Description Section */
-        .info-section {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            padding: 30px;
-            border-radius: 12px;
-            backdrop-filter: blur(5px);
-            line-height: 1.6;
-            font-size: 1.1rem;
-            color: #d1d5db;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        .card-purple {
+            border: 2px solid rgba(176, 38, 255, 0.3);
+            box-shadow: 0 4px 20px rgba(176, 38, 255, 0.1);
+        }
+        .card-purple:hover {
+            border-color: #b026ff;
+            box-shadow: 0 10px 30px rgba(176, 38, 255, 0.35);
         }
 
-        .info-section strong {
-            color: #fff;
+        .glow-text-cyan {
+            text-shadow: 0 0 12px rgba(0, 240, 255, 0.7);
+        }
+        .glow-text-pink {
+            text-shadow: 0 0 12px rgba(255, 0, 127, 0.7);
         }
 
-        /* Responsive */
-        @media (max-width: 600px) {
-            h1 { font-size: 2.2rem; }
-            .game-btn { width: 100%; height: 100px; font-size: 1.1rem; }
-            .info-section { font-size: 1rem; padding: 20px; }
+        /* Modal styling */
+        #gameModal {
+            display: none;
+            backdrop-filter: blur(14px);
         }
     </style>
 </head>
-<body>
+<body class="relative flex flex-col justify-between">
+    <div class="grid-overlay"></div>
+    <div class="ambient-glow bg-cyan-400 w-96 h-96 top-0 left-0"></div>
+    <div class="ambient-glow bg-pink-500 w-96 h-96 bottom-10 right-10"></div>
+    <div class="ambient-glow bg-purple-600 w-80 h-80 top-1/2 left-1/3"></div>
 
-    <!-- Ambient Glowing Background -->
-    <div class="ambient-light light-1"></div>
-    <div class="ambient-light light-2"></div>
-
-    <div class="container">
-        <h1>Welcome to GAME HUB 🎮</h1>
-
-        <div class="game-links">
-            <a href="reflex-test.html" class="game-btn btn-reflex">
-                Quick Reflex Game ⚡
-            </a>
-            <a href="obstacle.html" class="game-btn btn-obstacle">
-                Obstacle Course Game 🏃‍♂️
-            </a>
-        </div>
-
-        <div class="info-section">
-            <p>
-                <strong>Reflex Hub is your mini‑game launcher!</strong> Choose between the Quick Reflex Game to test your reaction speed, or the Obstacle Course Game to challenge your timing and coordination. More games can be added here in the future — just drop new HTML files into the repo and link them with buttons.
+    <!-- Header Section -->
+    <header class="relative z-10 w-full pt-10 pb-6 px-4 text-center">
+        <div class="max-w-4xl mx-auto flex flex-col items-center">
+            <span class="orbitron text-xs md:text-sm font-bold tracking-widest uppercase px-4 py-1.5 rounded-full bg-cyan-950/70 border border-cyan-400/40 text-cyan-300 mb-3 shadow-[0_0_15px_rgba(0,240,255,0.25)]">
+                ⚡ Personal Browser Arcade
+            </span>
+            <h1 class="orbitron text-4xl sm:text-6xl font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-pink-500 to-cyan-300 drop-shadow-[0_0_20px_rgba(0,240,255,0.4)]">
+                NEON ARCADE HUB
+            </h1>
+            <p class="text-gray-300 mt-2 text-sm sm:text-base max-w-lg">
+                Jump platforming, reaction speed trials, and instant browser arcade titles.
             </p>
+        </div>
+    </header>
+
+    <main class="relative z-10 max-w-6xl w-full mx-auto px-4 py-6 flex-grow flex flex-col gap-12">
+        <!-- Native / Handcrafted Games Section -->
+        <section>
+            <div class="flex items-center justify-between border-b border-gray-800 pb-3 mb-6">
+                <div class="flex items-center gap-3">
+                    <span class="w-3 h-3 rounded-full bg-cyan-400 animate-ping"></span>
+                    <h2 class="orbitron text-2xl font-bold tracking-wide text-cyan-300 glow-text-cyan">
+                        CORE GAMES 🎮
+                    </h2>
+                </div>
+                <span class="text-xs text-gray-400 font-semibold orbitron tracking-wider">VANILLA JS • 60 FPS</span>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- Game 1: OBJECT RUN -->
+                <div class="neon-card card-cyan flex flex-col justify-between p-6 sm:p-7">
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="px-3 py-1 text-xs orbitron font-bold rounded-md bg-cyan-950 border border-cyan-400 text-cyan-300">
+                                RHYTHM RUNNER
+                            </span>
+                            <span class="text-xs text-gray-400 font-semibold orbitron">Handcrafted Maps</span>
+                        </div>
+                        <div class="w-full h-44 rounded-lg bg-slate-950 border border-cyan-500/30 flex items-center justify-center relative overflow-hidden mb-5 group">
+                            <!-- Custom SVG Graphic -->
+                            <svg class="w-full h-full" viewBox="0 0 240 120" fill="none">
+                                <rect width="240" height="120" fill="#060919"/>
+                                <line x1="0" y1="100" x2="240" y2="100" stroke="#00f0ff" stroke-width="2"/>
+                                <!-- Player Cube with Trail -->
+                                <circle cx="30" cy="78" r="4" fill="rgba(0,240,255,0.4)"/>
+                                <circle cx="42" cy="74" r="5" fill="rgba(0,240,255,0.6)"/>
+                                <rect x="55" y="60" width="26" height="26" fill="#00f0ff" stroke="#ffffff" stroke-width="2" transform="rotate(18 68 73)"/>
+                                <rect x="63" y="68" width="10" height="10" fill="#ffffff" transform="rotate(18 68 73)"/>
+                                <!-- Spikes -->
+                                <polygon points="115,100 125,78 135,100" fill="#ff007f"/>
+                                <polygon points="138,100 148,78 158,100" fill="#ff007f"/>
+                                <!-- Platform -->
+                                <rect x="175" y="65" width="50" height="12" fill="#0c1d38" stroke="#00f0ff" stroke-width="2"/>
+                            </svg>
+                            <div class="absolute inset-0 bg-cyan-400/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <span class="orbitron text-xs font-bold bg-black/85 px-4 py-1.5 rounded border border-cyan-400 text-cyan-300">
+                                    LAUNCH RUNNER
+                                </span>
+                            </div>
+                        </div>
+                        <h3 class="orbitron text-2xl font-bold text-white mb-2">OBJECT RUN 🏃</h3>
+                        <p class="text-gray-300 text-sm leading-relaxed mb-6">
+                            Geometry-Dash-inspired auto-runner with constant velocity, gravity jumps, particle-burst collisions, and multiple handcrafted maps including Volcanic Ruins and Dimensional Shift with ship flight mode.
+                        </p>
+                    </div>
+                    <a href="obstacle.html" class="w-full py-3.5 rounded-lg orbitron font-bold text-sm text-center bg-cyan-500 hover:bg-cyan-400 text-black shadow-[0_0_20px_rgba(0,240,255,0.45)] transition-all">
+                        SELECT MAP & PLAY
+                    </a>
+                </div>
+
+                <!-- Game 2: REFLEX TEST -->
+                <div class="neon-card card-pink flex flex-col justify-between p-6 sm:p-7">
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="px-3 py-1 text-xs orbitron font-bold rounded-md bg-pink-950 border border-pink-500 text-pink-300">
+                                SPEED TRAINER
+                            </span>
+                            <span class="text-xs text-gray-400 font-semibold orbitron">Millisecond Precision</span>
+                        </div>
+                        <div class="w-full h-44 rounded-lg bg-slate-950 border border-pink-500/30 flex items-center justify-center relative overflow-hidden mb-5 group">
+                            <!-- Custom SVG Graphic -->
+                            <svg class="w-full h-full" viewBox="0 0 240 120" fill="none">
+                                <rect width="240" height="120" fill="#130619"/>
+                                <!-- 3x3 Miniature Grid Indicator -->
+                                <rect x="35" y="25" width="20" height="20" rx="3" fill="#24072f" stroke="#ff007f" stroke-width="1.5"/>
+                                <rect x="60" y="25" width="20" height="20" rx="3" fill="#24072f" stroke="#ff007f" stroke-width="1.5"/>
+                                <rect x="85" y="25" width="20" height="20" rx="3" fill="#24072f" stroke="#ff007f" stroke-width="1.5"/>
+                                <rect x="35" y="50" width="20" height="20" rx="3" fill="#24072f" stroke="#ff007f" stroke-width="1.5"/>
+                                <rect x="60" y="50" width="20" height="20" rx="3" fill="#00f0ff" stroke="#ffffff" stroke-width="2"/>
+                                <rect x="85" y="50" width="20" height="20" rx="3" fill="#24072f" stroke="#ff007f" stroke-width="1.5"/>
+                                <rect x="35" y="75" width="20" height="20" rx="3" fill="#24072f" stroke="#ff007f" stroke-width="1.5"/>
+                                <rect x="60" y="75" width="20" height="20" rx="3" fill="#24072f" stroke="#ff007f" stroke-width="1.5"/>
+                                <rect x="85" y="75" width="20" height="20" rx="3" fill="#24072f" stroke="#ff007f" stroke-width="1.5"/>
+                                
+                                <circle cx="165" cy="55" r="28" stroke="#ff007f" stroke-width="2" fill="#200626"/>
+                                <polyline points="158,55 163,60 174,48" stroke="#00f0ff" stroke-width="3" fill="none" stroke-linecap="round"/>
+                                <text x="165" y="96" fill="#ff007f" font-family="Orbitron" font-size="11" text-anchor="middle" font-weight="bold">185 ms</text>
+                            </svg>
+                            <div class="absolute inset-0 bg-pink-500/10 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <span class="orbitron text-xs font-bold bg-black/85 px-4 py-1.5 rounded border border-pink-400 text-pink-300">
+                                    TEST REACTION
+                                </span>
+                            </div>
+                        </div>
+                        <h3 class="orbitron text-2xl font-bold text-white mb-2">REFLEX TEST ⚡</h3>
+                        <p class="text-gray-300 text-sm leading-relaxed mb-6">
+                            3x3 reaction speed trainer measuring pure visual reaction times. Track consecutive hit streaks, calculate running millisecond averages, and lock in personal high scores.
+                        </p>
+                    </div>
+                    <a href="reflex-test.html" class="w-full py-3.5 rounded-lg orbitron font-bold text-sm text-center bg-pink-500 hover:bg-pink-400 text-white shadow-[0_0_20px_rgba(255,0,127,0.45)] transition-all">
+                        TRAIN REFLEXES
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Community Arcade Section -->
+        <section>
+            <div class="flex items-center justify-between border-b border-gray-800 pb-3 mb-6">
+                <div>
+                    <h2 class="orbitron text-2xl font-bold tracking-wide text-pink-400 glow-text-pink">
+                        COMMUNITY ARCADE 🕹️
+                    </h2>
+                    <p class="text-gray-400 text-xs mt-1">Play embedded in-hub or launch directly in an external tab</p>
+                </div>
+                <span class="text-xs text-pink-400 font-semibold orbitron tracking-wider bg-pink-950/60 px-3 py-1 rounded-md border border-pink-500/40">
+                    5 TITLES AVAILABLE
+                </span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- External Game 1: Racing Limits -->
+                <div class="neon-card card-purple p-5 flex flex-col justify-between">
+                    <div>
+                        <div class="w-full h-44 rounded-lg overflow-hidden relative mb-4 border border-purple-500/30">
+                            <img src="https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=600&auto=format&fit=crop&q=80" 
+                                 alt="Racing Limits" 
+                                 class="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
+                                 onerror="this.src='https://placehold.co/600x400/1a0b2e/00f0ff?text=Racing+Limits'">
+                            <span class="absolute top-2 left-2 px-2 py-0.5 text-[10px] orbitron font-bold rounded bg-purple-950/90 text-purple-300 border border-purple-400">
+                                3D RACING
+                            </span>
+                        </div>
+                        <h3 class="orbitron text-lg font-bold text-white mb-1">Racing Limits</h3>
+                        <p class="text-gray-400 text-xs mb-4">
+                            High-speed highway traffic racing with custom vehicles, tight overtakes, and infinite drag runs.
+                        </p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="launchGame('Racing Limits', 'https://play.gamepix.com/racing-limits/embed', true)" 
+                                class="flex-1 py-2.5 rounded-md orbitron text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white transition-all shadow-[0_0_12px_rgba(176,38,255,0.4)]">
+                            PLAY IN HUB
+                        </button>
+                        <a href="https://www.crazygames.com/game/racing-limits" target="_blank" rel="noopener noreferrer"
+                           class="px-3 py-2.5 rounded-md orbitron text-xs font-bold bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 flex items-center justify-center" title="Open in new tab">
+                            ↗
+                        </a>
+                    </div>
+                </div>
+
+                <!-- External Game 2: Moto X3M -->
+                <div class="neon-card card-purple p-5 flex flex-col justify-between">
+                    <div>
+                        <div class="w-full h-44 rounded-lg overflow-hidden relative mb-4 border border-purple-500/30">
+                            <img src="https://images.unsplash.com/photo-1558981806-ec527fa84c39?w=600&auto=format&fit=crop&q=80" 
+                                 alt="Moto X3M" 
+                                 class="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
+                                 onerror="this.src='https://placehold.co/600x400/1a0b2e/00f0ff?text=Moto+X3M'">
+                            <span class="absolute top-2 left-2 px-2 py-0.5 text-[10px] orbitron font-bold rounded bg-purple-950/90 text-purple-300 border border-purple-400">
+                                BIKE STUNTS
+                            </span>
+                        </div>
+                        <h3 class="orbitron text-lg font-bold text-white mb-1">Moto X3M</h3>
+                        <p class="text-gray-400 text-xs mb-4">
+                            Flip through extreme obstacle tracks, giant loopings, TNT barrels, and perilous physics stages.
+                        </p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="launchGame('Moto X3M', 'https://play.gamepix.com/moto-x3m/embed', true)" 
+                                class="flex-1 py-2.5 rounded-md orbitron text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white transition-all shadow-[0_0_12px_rgba(176,38,255,0.4)]">
+                            PLAY IN HUB
+                        </button>
+                        <a href="https://www.crazygames.com/game/moto-x3m" target="_blank" rel="noopener noreferrer"
+                           class="px-3 py-2.5 rounded-md orbitron text-xs font-bold bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 flex items-center justify-center" title="Open in new tab">
+                            ↗
+                        </a>
+                    </div>
+                </div>
+
+                <!-- External Game 3: Drift Boss -->
+                <div class="neon-card card-purple p-5 flex flex-col justify-between">
+                    <div>
+                        <div class="w-full h-44 rounded-lg overflow-hidden relative mb-4 border border-purple-500/30">
+                            <img src="https://images.unsplash.com/photo-1511919884226-fd3cad34687c?w=600&auto=format&fit=crop&q=80" 
+                                 alt="Drift Boss" 
+                                 class="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
+                                 onerror="this.src='https://placehold.co/600x400/1a0b2e/00f0ff?text=Drift+Boss'">
+                            <span class="absolute top-2 left-2 px-2 py-0.5 text-[10px] orbitron font-bold rounded bg-purple-950/90 text-purple-300 border border-purple-400">
+                                ONE-TOUCH
+                            </span>
+                        </div>
+                        <h3 class="orbitron text-lg font-bold text-white mb-1">Drift Boss</h3>
+                        <p class="text-gray-400 text-xs mb-4">
+                            Time hairpin drifting turns around infinite zigzag narrow platforms without dropping off.
+                        </p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="launchGame('Drift Boss', 'https://play.gamepix.com/drift-boss/embed', true)" 
+                                class="flex-1 py-2.5 rounded-md orbitron text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white transition-all shadow-[0_0_12px_rgba(176,38,255,0.4)]">
+                            PLAY IN HUB
+                        </button>
+                        <a href="https://www.crazygames.com/game/drift-boss" target="_blank" rel="noopener noreferrer"
+                           class="px-3 py-2.5 rounded-md orbitron text-xs font-bold bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 flex items-center justify-center" title="Open in new tab">
+                            ↗
+                        </a>
+                    </div>
+                </div>
+
+                <!-- External Game 4: Tunnel Rush -->
+                <div class="neon-card card-purple p-5 flex flex-col justify-between">
+                    <div>
+                        <div class="w-full h-44 rounded-lg overflow-hidden relative mb-4 border border-purple-500/30">
+                            <img src="https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=600&auto=format&fit=crop&q=80" 
+                                 alt="Tunnel Rush" 
+                                 class="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
+                                 onerror="this.src='https://placehold.co/600x400/1a0b2e/00f0ff?text=Tunnel+Rush'">
+                            <span class="absolute top-2 left-2 px-2 py-0.5 text-[10px] orbitron font-bold rounded bg-purple-950/90 text-purple-300 border border-purple-400">
+                                HIGH SPEED
+                            </span>
+                        </div>
+                        <h3 class="orbitron text-lg font-bold text-white mb-1">Tunnel Rush</h3>
+                        <p class="text-gray-400 text-xs mb-4">
+                            Dodge spinning geometric barriers at extreme velocity inside a glowing 3D color vortex.
+                        </p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="launchGame('Tunnel Rush', 'https://play.gamepix.com/color-tunnel/embed', true)" 
+                                class="flex-1 py-2.5 rounded-md orbitron text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white transition-all shadow-[0_0_12px_rgba(176,38,255,0.4)]">
+                            PLAY IN HUB
+                        </button>
+                        <a href="https://www.crazygames.com/game/tunnel-rush" target="_blank" rel="noopener noreferrer"
+                           class="px-3 py-2.5 rounded-md orbitron text-xs font-bold bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 flex items-center justify-center" title="Open in new tab">
+                            ↗
+                        </a>
+                    </div>
+                </div>
+
+                <!-- External Game 5: Basketball Stars -->
+                <div class="neon-card card-purple p-5 flex flex-col justify-between">
+                    <div>
+                        <div class="w-full h-44 rounded-lg overflow-hidden relative mb-4 border border-purple-500/30">
+                            <img src="https://images.unsplash.com/photo-1546519638-68e109498ffc?w=600&auto=format&fit=crop&q=80" 
+                                 alt="Basketball Stars" 
+                                 class="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
+                                 onerror="this.src='https://placehold.co/600x400/1a0b2e/00f0ff?text=Basketball+Stars'">
+                            <span class="absolute top-2 left-2 px-2 py-0.5 text-[10px] orbitron font-bold rounded bg-purple-950/90 text-purple-300 border border-purple-400">
+                                1V1 HOOPS
+                            </span>
+                        </div>
+                        <h3 class="orbitron text-lg font-bold text-white mb-1">Basketball Stars</h3>
+                        <p class="text-gray-400 text-xs mb-4">
+                            1-on-1 court matchups with buzzer-beater three-pointers, steals, alley-oops, and mega dunks.
+                        </p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="launchGame('Basketball Stars', 'https://play.gamepix.com/basketball-stars/embed', true)" 
+                                class="flex-1 py-2.5 rounded-md orbitron text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white transition-all shadow-[0_0_12px_rgba(176,38,255,0.4)]">
+                            PLAY IN HUB
+                        </button>
+                        <a href="https://www.crazygames.com/game/basketball-stars" target="_blank" rel="noopener noreferrer"
+                           class="px-3 py-2.5 rounded-md orbitron text-xs font-bold bg-gray-800 hover:bg-gray-700 text-gray-200 border border-gray-700 flex items-center justify-center" title="Open in new tab">
+                            ↗
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer / Disclaimer -->
+    <footer class="relative z-10 w-full py-8 border-t border-gray-800/80 text-center px-4 bg-black/40">
+        <div class="max-w-4xl mx-auto flex flex-col items-center gap-2 text-xs text-gray-400">
+            <p class="orbitron tracking-widest text-cyan-400 font-bold">NEON ARCADE HUB</p>
+            <p>These games are hosted externally. All rights belong to their respective creators.</p>
+        </div>
+    </footer>
+
+    <!-- Fullscreen Iframe Modal for Community Arcade Embeds -->
+    <div id="gameModal" class="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-6 bg-black/80">
+        <div class="relative w-full max-w-5xl h-[85vh] bg-[#090b1c] border-2 border-cyan-400 rounded-xl overflow-hidden flex flex-col shadow-[0_0_40px_rgba(0,240,255,0.4)]">
+            <!-- Modal Header Bar -->
+            <div class="w-full bg-[#050614] px-4 py-3 border-b border-cyan-500/30 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <span class="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse"></span>
+                    <h4 id="modalGameTitle" class="orbitron font-bold text-sm sm:text-base text-cyan-300">GAME TITLE</h4>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button id="openNewTabBtn" class="orbitron text-xs px-3 py-1.5 rounded bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-600 transition-colors">
+                        OPEN IN TAB ↗
+                    </button>
+                    <button id="fullscreenBtn" class="orbitron text-xs px-3 py-1.5 rounded bg-gray-800 hover:bg-gray-700 text-cyan-300 border border-cyan-400/40 transition-colors">
+                        ⛶ FULLSCREEN
+                    </button>
+                    <button onclick="closeModal()" class="w-8 h-8 rounded-full bg-pink-950/80 hover:bg-pink-600 text-pink-300 hover:text-white flex items-center justify-center transition-all">
+                        ✕
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Game Frame Area -->
+            <div class="relative flex-1 w-full h-full bg-black">
+                <div id="iframeLoader" class="absolute inset-0 flex flex-col items-center justify-center text-cyan-400 gap-2">
+                    <span class="orbitron text-sm animate-pulse">CONNECTING TO ARCADE STREAM...</span>
+                </div>
+                <iframe id="gameIframe" 
+                        class="w-full h-full border-0 relative z-10" 
+                        src="" 
+                        allow="fullscreen; autoplay; gamepad" 
+                        onload="document.getElementById('iframeLoader').style.display='none'">
+                </iframe>
+            </div>
         </div>
     </div>
 
+    <script>
+        // Modal State Handlers
+        const gameModal = document.getElementById('gameModal');
+        const gameIframe = document.getElementById('gameIframe');
+        const modalGameTitle = document.getElementById('modalGameTitle');
+        const iframeLoader = document.getElementById('iframeLoader');
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
+        const openNewTabBtn = document.getElementById('openNewTabBtn');
+
+        let currentActiveUrl = '';
+
+        function launchGame(title, embedUrl, canEmbed) {
+            currentActiveUrl = embedUrl;
+            if (canEmbed && embedUrl) {
+                modalGameTitle.innerText = title.toUpperCase();
+                iframeLoader.style.display = 'flex';
+                gameIframe.src = embedUrl;
+                gameModal.style.display = 'flex';
+                document.body.style.overflow = 'hidden';
+            } else {
+                window.open(embedUrl, '_blank');
+            }
+        }
+
+        function closeModal() {
+            gameModal.style.display = 'none';
+            gameIframe.src = '';
+            currentActiveUrl = '';
+            document.body.style.overflow = 'auto';
+        }
+
+        // Open in new tab button inside modal
+        openNewTabBtn.addEventListener('click', () => {
+            if (currentActiveUrl) {
+                window.open(currentActiveUrl, '_blank');
+            }
+        });
+
+        // Close on ESC key
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && gameModal.style.display === 'flex') {
+                closeModal();
+            }
+        });
+
+        // Close when clicking modal backdrop
+        gameModal.addEventListener('click', (e) => {
+            if (e.target === gameModal) {
+                closeModal();
+            }
+        });
+
+        // Fullscreen toggle for iframe
+        fullscreenBtn.addEventListener('click', () => {
+            if (gameIframe.requestFullscreen) {
+                gameIframe.requestFullscreen();
+            } else if (gameIframe.webkitRequestFullscreen) {
+                gameIframe.webkitRequestFullscreen();
+            } else if (gameIframe.msRequestFullscreen) {
+                gameIframe.msRequestFullscreen();
+            }
+        });
+    </script>
 </body>
 </html>
