@@ -3,26 +3,26 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>3D Mech Boss Rush</title>
+<title>SHOOTOUT 🌋 — Mech Arena</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Rajdhani:wght@600;700&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
   body { background: #03040b; overflow: hidden; font-family: 'Rajdhani', sans-serif; color: #fff; }
   canvas { display: block; width: 100vw; height: 100vh; }
 
-  /* HUD */
+  /* Top HUD */
   #hud {
     position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
-    width: 90%; max-width: 600px; display: flex; flex-direction: column; gap: 7px;
+    width: 90%; max-width: 620px; display: flex; flex-direction: column; gap: 7px;
     pointer-events: none; z-index: 10;
   }
   #stats-panel {
     display: flex; justify-content: space-between; align-items: center;
     font-family: 'Orbitron', sans-serif; font-size: 13px; letter-spacing: 1.5px;
-    text-shadow: 0 0 10px #00f0ff;
+    text-shadow: 0 0 10px #ff5500;
   }
   .bar-container {
-    background: rgba(8, 12, 28, 0.8); border: 2px solid rgba(255, 255, 255, 0.2);
+    background: rgba(14, 8, 5, 0.85); border: 2px solid rgba(255, 100, 0, 0.35);
     border-radius: 8px; height: 18px; position: relative; overflow: hidden;
     backdrop-filter: blur(6px);
   }
@@ -38,16 +38,16 @@
 
   /* Center Crosshair */
   #reticle {
-    position: absolute; top: 50%; left: 50%; width: 18px; height: 18px;
-    transform: translate(-50%, -50%); border: 2px solid rgba(0, 240, 255, 0.45);
+    position: absolute; top: 50%; left: 50%; width: 20px; height: 20px;
+    transform: translate(-50%, -50%); border: 2px solid rgba(255, 85, 0, 0.6);
     border-radius: 50%; pointer-events: none; z-index: 5;
   }
   #reticle::after {
     content: ''; position: absolute; top: 50%; left: 50%; width: 4px; height: 4px;
-    background: #00f0ff; transform: translate(-50%, -50%); border-radius: 50%;
+    background: #ff5500; transform: translate(-50%, -50%); border-radius: 50%;
   }
 
-  /* Mobile Touch Controls */
+  /* Mobile Controls */
   #mobile-ui { display: none; position: absolute; inset: 0; pointer-events: none; z-index: 20; }
   .touch-btn {
     pointer-events: auto; position: absolute; border-radius: 50%;
@@ -58,8 +58,8 @@
   }
   #btn-shoot {
     left: 28px; bottom: 35px; width: 80px; height: 80px;
-    background: rgba(255, 0, 85, 0.25); border-color: #ff0055; color: #ff80a5;
-    box-shadow: 0 0 18px rgba(255, 0, 85, 0.35);
+    background: rgba(255, 69, 0, 0.3); border-color: #ff5500; color: #ffaa55;
+    box-shadow: 0 0 20px rgba(255, 85, 0, 0.45);
   }
   #btn-jump {
     right: 48px; bottom: 165px; width: 58px; height: 58px;
@@ -68,13 +68,13 @@
   }
   #joystick-zone {
     right: 25px; bottom: 25px; width: 125px; height: 125px; position: absolute;
-    border-radius: 50%; border: 2px dashed rgba(0, 240, 255, 0.35);
-    background: rgba(4, 9, 24, 0.4); pointer-events: auto; touch-action: none;
+    border-radius: 50%; border: 2px dashed rgba(255, 85, 0, 0.4);
+    background: rgba(18, 8, 4, 0.45); pointer-events: auto; touch-action: none;
   }
   #joystick-thumb {
-    width: 48px; height: 48px; border-radius: 50%; background: #00f0ff;
+    width: 48px; height: 48px; border-radius: 50%; background: #ff5500;
     position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-    box-shadow: 0 0 14px #00f0ff; pointer-events: none;
+    box-shadow: 0 0 14px #ff5500; pointer-events: none;
   }
 
   /* Damage Screen Flash */
@@ -86,7 +86,8 @@
   /* Desktop Key Legend Note */
   #desktop-legend {
     position: absolute; bottom: 12px; left: 16px; font-size: 11px;
-    color: rgba(255, 255, 255, 0.45); letter-spacing: 1px; pointer-events: none;
+    color: rgba(255, 255, 255, 0.5); letter-spacing: 1px; pointer-events: none;
+    font-family: 'Orbitron', sans-serif;
   }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -117,10 +118,10 @@
   <div id="joystick-zone"><div id="joystick-thumb"></div></div>
 </div>
 
-<div id="desktop-legend">WASD = MOVE | SPACE = JUMP | CLICK / SHIFT = SHOOT</div>
+<div id="desktop-legend">WASD = MOVE | SPACE = JUMP | ENTER / CLICK = SHOOT</div>
 
 <script>
-// --- AUDIO SYNTHESIS ENGINE (Web Audio API) ---
+// --- AUDIO SYNTHESIS ENGINE ---
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 function playFx(type) {
   if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -131,9 +132,9 @@ function playFx(type) {
 
   if (type === 'laser') {
     osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(800, now);
-    osc.frequency.exponentialRampToValueAtTime(100, now + 0.12);
-    gain.gain.setValueAtTime(0.2, now);
+    osc.frequency.setValueAtTime(820, now);
+    osc.frequency.exponentialRampToValueAtTime(120, now + 0.12);
+    gain.gain.setValueAtTime(0.25, now);
     gain.gain.linearRampToValueAtTime(0, now + 0.12);
     osc.start(now); osc.stop(now + 0.12);
   } else if (type === 'boss_shot') {
@@ -162,8 +163,8 @@ function playFx(type) {
 
 // --- THREE.JS SCENE SETUP ---
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x040510);
-scene.fog = new THREE.FogExp2(0x040510, 0.012);
+scene.background = new THREE.Color(0x06030b);
+scene.fog = new THREE.FogExp2(0x06030b, 0.012);
 
 const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 400);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -173,8 +174,8 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.body.appendChild(renderer.domElement);
 
 // Lighting
-scene.add(new THREE.AmbientLight(0x354060, 1.2));
-const dirLight = new THREE.DirectionalLight(0xaad5ff, 1.4);
+scene.add(new THREE.AmbientLight(0x402518, 1.3));
+const dirLight = new THREE.DirectionalLight(0xffaa66, 1.4);
 dirLight.position.set(30, 60, 40);
 dirLight.castShadow = true;
 dirLight.shadow.mapSize.width = 1024;
@@ -189,10 +190,10 @@ const ARENA_L = 90;  // Z half-span (-90 to +90)
 const floorTexCanvas = document.createElement('canvas');
 floorTexCanvas.width = 256; floorTexCanvas.height = 256;
 const fCtx = floorTexCanvas.getContext('2d');
-fCtx.fillStyle = '#080c1d'; fCtx.fillRect(0, 0, 256, 256);
-fCtx.strokeStyle = '#00f0ff33'; fCtx.lineWidth = 4;
+fCtx.fillStyle = '#0f0705'; fCtx.fillRect(0, 0, 256, 256);
+fCtx.strokeStyle = '#ff440033'; fCtx.lineWidth = 4;
 fCtx.strokeRect(0, 0, 256, 256);
-fCtx.strokeStyle = '#ff00ea18'; fCtx.lineWidth = 2;
+fCtx.strokeStyle = '#ffaa0018'; fCtx.lineWidth = 2;
 fCtx.beginPath(); fCtx.moveTo(0, 128); fCtx.lineTo(256, 128); fCtx.moveTo(128, 0); fCtx.lineTo(128, 256); fCtx.stroke();
 
 const floorTex = new THREE.CanvasTexture(floorTexCanvas);
@@ -206,11 +207,11 @@ floor.rotation.x = -Math.PI / 2;
 floor.receiveShadow = true;
 scene.add(floor);
 
-// 2. Rectangular Perimeter Energy Walls & Corner Pylons
-const wallMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff, transparent: true, opacity: 0.18, side: THREE.DoubleSide });
-const wallBorderMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff });
+// 2. Perimeter Walls
+const wallMat = new THREE.MeshBasicMaterial({ color: 0xff4500, transparent: true, opacity: 0.18, side: THREE.DoubleSide });
+const wallBorderMat = new THREE.MeshBasicMaterial({ color: 0xff5500 });
 const pylonGeo = new THREE.BoxGeometry(3, 16, 3);
-const pylonMat = new THREE.MeshStandardMaterial({ color: 0x11162b, roughness: 0.4, metalness: 0.8 });
+const pylonMat = new THREE.MeshStandardMaterial({ color: 0x1f0e08, roughness: 0.4, metalness: 0.8 });
 
 function buildWall(x, z, w, l) {
   const wall = new THREE.Mesh(new THREE.BoxGeometry(w, 8, l), wallMat);
@@ -229,75 +230,99 @@ buildWall(ARENA_W, 0, 0.8, ARENA_L * 2);
 [[-ARENA_W, -ARENA_L], [ARENA_W, -ARENA_L], [-ARENA_W, ARENA_L], [ARENA_W, ARENA_L]].forEach(([px, pz]) => {
   const pylon = new THREE.Mesh(pylonGeo, pylonMat);
   pylon.position.set(px, 8, pz);
-  const beacon = new THREE.Mesh(new THREE.SphereGeometry(1.2, 12, 12), new THREE.MeshBasicMaterial({ color: 0x00f0ff }));
+  const beacon = new THREE.Mesh(new THREE.SphereGeometry(1.2, 12, 12), new THREE.MeshBasicMaterial({ color: 0xff5500 }));
   beacon.position.set(0, 8.5, 0);
   pylon.add(beacon);
   scene.add(pylon);
 });
 
-// --- CHARACTER MODELS ---
+// --- ADVANCED CHARACTER RIGS ---
 
-// 1. Player Combat Mech Rig
+// 1. Upgraded Player Mech Rig (Dual Boosters, Rotary Plasma Blaster)
 function buildPlayerMech() {
   const root = new THREE.Group();
-  const matArmor = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.4, metalness: 0.6 });
-  const matCyan = new THREE.MeshStandardMaterial({ color: 0x00e5ff, roughness: 0.2, metalness: 0.5 });
+  const matArmor = new THREE.MeshStandardMaterial({ color: 0x1c2128, roughness: 0.4, metalness: 0.7 });
+  const matCyan = new THREE.MeshStandardMaterial({ color: 0x00f0ff, roughness: 0.2, metalness: 0.5 });
   const matVisor = new THREE.MeshBasicMaterial({ color: 0x00ffff });
+  const matExhaust = new THREE.MeshBasicMaterial({ color: 0xff5500 });
 
-  // Torso
-  const torso = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.8, 1.2), matArmor);
+  // Chassis
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(1.7, 1.9, 1.3), matArmor);
   torso.position.y = 2.4;
   torso.castShadow = true;
   root.add(torso);
 
-  const chestPlate = new THREE.Mesh(new THREE.BoxGeometry(1.3, 1.1, 0.6), matCyan);
-  chestPlate.position.set(0, 0.2, 0.5);
-  torso.add(chestPlate);
+  const chestPlating = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.2, 0.5), matCyan);
+  chestPlating.position.set(0, 0.2, 0.55);
+  torso.add(chestPlating);
 
-  // Head & Visor
-  const head = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.7, 0.9), matArmor);
-  head.position.set(0, 1.35, 0);
-  const visor = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.25, 0.3), matVisor);
-  visor.position.set(0, 0.05, 0.42);
+  // Backpack Boosters
+  [-0.5, 0.5].forEach(bx => {
+    const jet = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.26, 1.4, 10), matArmor);
+    jet.position.set(bx, 0.2, -0.75);
+    const plume = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.5, 8), matExhaust);
+    plume.rotation.x = Math.PI;
+    plume.position.set(0, -0.85, 0);
+    jet.add(plume);
+    torso.add(jet);
+  });
+
+  // Head & Helmet
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.75, 0.95), matArmor);
+  head.position.set(0, 1.4, 0);
+  const visor = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.28, 0.3), matVisor);
+  visor.position.set(0, 0.05, 0.45);
   head.add(visor);
   torso.add(head);
 
-  // Right Blaster Cannon Arm
+  // Right Rotary Arm Cannon
   const rArm = new THREE.Group();
-  rArm.position.set(1.15, 0.4, 0);
-  const shoulderR = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.6), matCyan);
-  const cannon = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.28, 1.6, 12), matArmor);
-  cannon.rotation.x = Math.PI / 2;
-  cannon.position.set(0.1, -0.4, 0.5);
-  const muzzle = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.3, 12), matVisor);
-  muzzle.rotation.x = Math.PI / 2;
-  muzzle.position.set(0.1, -0.4, 1.35);
-  rArm.add(shoulderR, cannon, muzzle);
+  rArm.position.set(1.25, 0.4, 0);
+  const shoulderR = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 0.7), matCyan);
+  const cannonHousing = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 1.4), matArmor);
+  cannonHousing.position.set(0.1, -0.3, 0.5);
+  
+  // Dual barrels
+  [-0.12, 0.12].forEach(ox => {
+    const b = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 1.2, 8), matCyan);
+    b.rotation.x = Math.PI / 2;
+    b.position.set(ox + 0.1, -0.3, 1.4);
+    rArm.add(b);
+  });
+
+  rArm.add(shoulderR, cannonHousing);
   torso.add(rArm);
 
   // Left Arm
   const lArm = new THREE.Group();
-  lArm.position.set(-1.15, 0.4, 0);
-  const shoulderL = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.6), matCyan);
-  const foreArm = new THREE.Mesh(new THREE.BoxGeometry(0.4, 1.2, 0.4), matArmor);
+  lArm.position.set(-1.25, 0.4, 0);
+  const shoulderL = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 0.7), matCyan);
+  const foreArm = new THREE.Mesh(new THREE.BoxGeometry(0.45, 1.3, 0.45), matArmor);
   foreArm.position.set(0, -0.5, 0);
   lArm.add(shoulderL, foreArm);
   torso.add(lArm);
 
-  // Legs
-  const legR = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.5, 0.6), matArmor);
-  legR.position.set(0.5, 0.8, 0);
-  legR.castShadow = true;
-  const legL = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.5, 0.6), matArmor);
-  legL.position.set(-0.5, 0.8, 0);
-  legL.castShadow = true;
-  root.add(legR, legL);
+  // Legs with Armored Shin Guards
+  const legR = new THREE.Group();
+  legR.position.set(0.55, 1.0, 0);
+  const upperR = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.6, 0.55), matArmor);
+  upperR.position.y = -0.3;
+  upperR.castShadow = true;
+  legR.add(upperR);
 
+  const legL = new THREE.Group();
+  legL.position.set(-0.55, 1.0, 0);
+  const upperL = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.6, 0.55), matArmor);
+  upperL.position.y = -0.3;
+  upperL.castShadow = true;
+  legL.add(upperL);
+
+  root.add(legR, legL);
   root.parts = { torso, rArm, lArm, legR, legL };
   return root;
 }
 
-// 2. Boss 1: Steel Goliath (Siege Walker)
+// 2. Boss 1: Steel Goliath (Quad-Legged Siege Walker)
 function buildGoliath() {
   const g = new THREE.Group();
   const matHull = new THREE.MeshStandardMaterial({ color: 0x22252a, roughness: 0.5, metalness: 0.8 });
@@ -312,6 +337,7 @@ function buildGoliath() {
   dome.position.set(0, 1.4, 0.3);
   core.add(dome);
 
+  // Dual Turrets
   [-1.8, 1.8].forEach(x => {
     const cannon = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.5, 4.5, 12), matHull);
     cannon.rotation.x = Math.PI / 2;
@@ -425,7 +451,7 @@ scene.add(player.mesh);
 const bullets = [];
 const bulletGeo = new THREE.SphereGeometry(0.35, 8, 8);
 
-function fireProjectile(origin, angle, isPlayer = false, color = 0x00ffff, speed = 44, spread = 0) {
+function fireProjectile(origin, angle, isPlayer = false, color = 0x00f0ff, speed = 46, spread = 0) {
   const mat = new THREE.MeshBasicMaterial({ color });
   const mesh = new THREE.Mesh(bulletGeo, mat);
   mesh.position.copy(origin);
@@ -443,7 +469,7 @@ function fireProjectile(origin, angle, isPlayer = false, color = 0x00ffff, speed
 
 // --- BOSS LOGIC & PROGRESSION ---
 let bossesDefeated = 0;
-let bestStreak = parseInt(localStorage.getItem('br_best_mech') || '0');
+let bestStreak = parseInt(localStorage.getItem('shootout_best_streak') || '0');
 document.getElementById('best-text').innerText = `BEST: ${bestStreak}`;
 
 let currentBoss = null;
@@ -478,8 +504,9 @@ function spawnNextBoss() {
   document.getElementById('hp-boss-bar').style.width = '100%';
 }
 
-// --- INPUTS & CONTROLS ---
+// --- CONTROLS: WASD + SPACE + ENTER / CLICK ---
 const input = { forward: 0, right: 0 };
+let isMouseDown = false;
 
 function jump() {
   if (player.mesh.position.y <= 0.05) {
@@ -558,14 +585,24 @@ if (isMobile) {
   window.addEventListener('touchcancel', endJoy);
 
 } else {
-  // Desktop Controls: WASD + Space + Mouse Click OR Shift Key
+  // Desktop Controls: WASD + Space + Enter / Mouse Click
   const keys = {};
+
   window.addEventListener('keydown', (e) => {
     keys[e.code] = true;
+    if (e.key === 'Enter' || e.code === 'Enter' || e.code === 'NumpadEnter') {
+      keys['EnterKey'] = true;
+      shoot();
+    }
     if (e.code === 'Space') jump();
-    if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') shoot();
   });
-  window.addEventListener('keyup', (e) => keys[e.code] = false);
+
+  window.addEventListener('keyup', (e) => {
+    keys[e.code] = false;
+    if (e.key === 'Enter' || e.code === 'Enter' || e.code === 'NumpadEnter') {
+      keys['EnterKey'] = false;
+    }
+  });
 
   window.addEventListener('mousemove', (e) => {
     const dx = e.clientX - window.innerWidth / 2;
@@ -574,12 +611,24 @@ if (isMobile) {
   });
 
   window.addEventListener('mousedown', (e) => {
-    if (e.button === 0) shoot();
+    if (e.button === 0) {
+      isMouseDown = true;
+      shoot();
+    }
+  });
+
+  window.addEventListener('mouseup', (e) => {
+    if (e.button === 0) isMouseDown = false;
   });
 
   function pollDesktop() {
     input.forward = (keys['KeyW'] ? 1 : 0) - (keys['KeyS'] ? 1 : 0);
     input.right   = (keys['KeyD'] ? 1 : 0) - (keys['KeyA'] ? 1 : 0);
+
+    // Continuous fire while holding Enter key OR Mouse Button
+    if (keys['EnterKey'] || isMouseDown) {
+      shoot();
+    }
   }
 }
 
@@ -754,7 +803,7 @@ function update(dt) {
           document.getElementById('score-text').innerText = `BOSSES CONQUERED: ${bossesDefeated}`;
           if (bossesDefeated > bestStreak) {
             bestStreak = bossesDefeated;
-            localStorage.setItem('br_best_mech', bestStreak);
+            localStorage.setItem('shootout_best_streak', bestStreak);
             document.getElementById('best-text').innerText = `BEST: ${bestStreak}`;
           }
           spawnNextBoss();
