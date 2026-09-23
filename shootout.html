@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>SHOOTOUT 🌋 — Mech Arena</title>
+<title>SHOOTOUT 🌋</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Rajdhani:wght@600;700&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
-  body { background: #03040b; overflow: hidden; font-family: 'Rajdhani', sans-serif; color: #fff; }
+  body { background: #050208; overflow: hidden; font-family: 'Rajdhani', sans-serif; color: #fff; }
   canvas { display: block; width: 100vw; height: 100vh; }
 
   /* Top HUD */
@@ -16,13 +16,20 @@
     width: 90%; max-width: 620px; display: flex; flex-direction: column; gap: 7px;
     pointer-events: none; z-index: 10;
   }
-  #stats-panel {
+  #title-bar {
     display: flex; justify-content: space-between; align-items: center;
-    font-family: 'Orbitron', sans-serif; font-size: 13px; letter-spacing: 1.5px;
-    text-shadow: 0 0 10px #ff5500;
+    font-family: 'Orbitron', sans-serif;
+  }
+  #game-title {
+    font-size: 16px; font-weight: 900; letter-spacing: 2px;
+    color: #ff5500; text-shadow: 0 0 12px #ff3300;
+  }
+  #stats-panel {
+    display: flex; gap: 14px; font-family: 'Orbitron', sans-serif; font-size: 12px;
+    letter-spacing: 1px; text-shadow: 0 0 8px #ffaa00;
   }
   .bar-container {
-    background: rgba(14, 8, 5, 0.85); border: 2px solid rgba(255, 100, 0, 0.35);
+    background: rgba(14, 8, 5, 0.85); border: 2px solid rgba(255, 100, 0, 0.4);
     border-radius: 8px; height: 18px; position: relative; overflow: hidden;
     backdrop-filter: blur(6px);
   }
@@ -38,13 +45,22 @@
 
   /* Center Crosshair */
   #reticle {
-    position: absolute; top: 50%; left: 50%; width: 20px; height: 20px;
-    transform: translate(-50%, -50%); border: 2px solid rgba(255, 85, 0, 0.6);
+    position: absolute; top: 50%; left: 50%; width: 22px; height: 22px;
+    transform: translate(-50%, -50%); border: 2px solid rgba(255, 85, 0, 0.7);
     border-radius: 50%; pointer-events: none; z-index: 5;
   }
   #reticle::after {
     content: ''; position: absolute; top: 50%; left: 50%; width: 4px; height: 4px;
     background: #ff5500; transform: translate(-50%, -50%); border-radius: 50%;
+  }
+
+  /* Orb Alert Toast */
+  #orb-toast {
+    position: absolute; top: 110px; left: 50%; transform: translateX(-50%);
+    font-family: 'Orbitron', sans-serif; font-size: 12px; font-weight: 900;
+    color: #00ffaa; text-shadow: 0 0 10px #00ffaa; background: rgba(0, 40, 25, 0.75);
+    padding: 6px 16px; border-radius: 20px; border: 1px solid #00ffaa;
+    opacity: 0; transition: opacity 0.3s ease; pointer-events: none; z-index: 12;
   }
 
   /* Mobile Controls */
@@ -77,13 +93,12 @@
     box-shadow: 0 0 14px #ff5500; pointer-events: none;
   }
 
-  /* Damage Screen Flash */
+  /* Damage / Heal Flash */
   #hit-flash {
     position: absolute; inset: 0; pointer-events: none; background: rgba(255, 0, 50, 0.35);
     opacity: 0; transition: opacity 0.08s ease; z-index: 15;
   }
 
-  /* Desktop Key Legend Note */
   #desktop-legend {
     position: absolute; bottom: 12px; left: 16px; font-size: 11px;
     color: rgba(255, 255, 255, 0.5); letter-spacing: 1px; pointer-events: none;
@@ -96,19 +111,23 @@
 
 <div id="hit-flash"></div>
 <div id="reticle"></div>
+<div id="orb-toast">+20% HEALTH RESTORED!</div>
 
 <div id="hud">
-  <div id="stats-panel">
-    <span id="score-text">BOSSES CONQUERED: 0</span>
-    <span id="best-text" style="color: #ffd700;">BEST: 0</span>
+  <div id="title-bar">
+    <span id="game-title">SHOOTOUT 🌋</span>
+    <div id="stats-panel">
+      <span id="score-text">CONQUERED: 0</span>
+      <span id="best-text" style="color: #ffd700;">BEST: 0</span>
+    </div>
   </div>
   <div class="bar-container">
     <div id="hp-player-bar" class="bar-fill"></div>
-    <div class="bar-label">MECH INTEGRITY</div>
+    <div class="bar-label">PLAYER VITALITY</div>
   </div>
   <div class="bar-container">
     <div id="hp-boss-bar" class="bar-fill"></div>
-    <div id="boss-name" class="bar-label">TARGET: STEEL GOLIATH</div>
+    <div id="boss-name" class="bar-label">BOSS HEALTH</div>
   </div>
 </div>
 
@@ -132,32 +151,39 @@ function playFx(type) {
 
   if (type === 'laser') {
     osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(820, now);
-    osc.frequency.exponentialRampToValueAtTime(120, now + 0.12);
-    gain.gain.setValueAtTime(0.25, now);
-    gain.gain.linearRampToValueAtTime(0, now + 0.12);
-    osc.start(now); osc.stop(now + 0.12);
+    osc.frequency.setValueAtTime(860, now);
+    osc.frequency.exponentialRampToValueAtTime(140, now + 0.1);
+    gain.gain.setValueAtTime(0.2, now);
+    gain.gain.linearRampToValueAtTime(0, now + 0.1);
+    osc.start(now); osc.stop(now + 0.1);
   } else if (type === 'boss_shot') {
     osc.type = 'triangle';
     osc.frequency.setValueAtTime(260, now);
-    osc.frequency.exponentialRampToValueAtTime(45, now + 0.22);
-    gain.gain.setValueAtTime(0.3, now);
-    gain.gain.linearRampToValueAtTime(0, now + 0.22);
-    osc.start(now); osc.stop(now + 0.22);
+    osc.frequency.exponentialRampToValueAtTime(50, now + 0.2);
+    gain.gain.setValueAtTime(0.28, now);
+    gain.gain.linearRampToValueAtTime(0, now + 0.2);
+    osc.start(now); osc.stop(now + 0.2);
   } else if (type === 'hit') {
     osc.type = 'square';
-    osc.frequency.setValueAtTime(120, now);
-    osc.frequency.linearRampToValueAtTime(30, now + 0.15);
+    osc.frequency.setValueAtTime(130, now);
+    osc.frequency.linearRampToValueAtTime(35, now + 0.14);
     gain.gain.setValueAtTime(0.35, now);
-    gain.gain.linearRampToValueAtTime(0, now + 0.15);
-    osc.start(now); osc.stop(now + 0.15);
+    gain.gain.linearRampToValueAtTime(0, now + 0.14);
+    osc.start(now); osc.stop(now + 0.14);
+  } else if (type === 'heal') {
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(320, now);
+    osc.frequency.exponentialRampToValueAtTime(840, now + 0.3);
+    gain.gain.setValueAtTime(0.3, now);
+    gain.gain.linearRampToValueAtTime(0, now + 0.3);
+    osc.start(now); osc.stop(now + 0.3);
   } else if (type === 'explode') {
     osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(70, now);
-    osc.frequency.linearRampToValueAtTime(15, now + 0.45);
+    osc.frequency.setValueAtTime(75, now);
+    osc.frequency.linearRampToValueAtTime(20, now + 0.4);
     gain.gain.setValueAtTime(0.5, now);
-    gain.gain.linearRampToValueAtTime(0, now + 0.45);
-    osc.start(now); osc.stop(now + 0.45);
+    gain.gain.linearRampToValueAtTime(0, now + 0.4);
+    osc.start(now); osc.stop(now + 0.4);
   }
 }
 
@@ -173,7 +199,6 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.body.appendChild(renderer.domElement);
 
-// Lighting
 scene.add(new THREE.AmbientLight(0x402518, 1.3));
 const dirLight = new THREE.DirectionalLight(0xffaa66, 1.4);
 dirLight.position.set(30, 60, 40);
@@ -182,11 +207,10 @@ dirLight.shadow.mapSize.width = 1024;
 dirLight.shadow.mapSize.height = 1024;
 scene.add(dirLight);
 
-// --- RECTANGULAR ARENA SETUP ---
-const ARENA_W = 60;  // X half-span (-60 to +60)
-const ARENA_L = 90;  // Z half-span (-90 to +90)
+// --- RECTANGULAR ARENA ---
+const ARENA_W = 60;
+const ARENA_L = 90;
 
-// 1. Grid Floor Texture
 const floorTexCanvas = document.createElement('canvas');
 floorTexCanvas.width = 256; floorTexCanvas.height = 256;
 const fCtx = floorTexCanvas.getContext('2d');
@@ -201,23 +225,23 @@ floorTex.wrapS = THREE.RepeatWrapping;
 floorTex.wrapT = THREE.RepeatWrapping;
 floorTex.repeat.set(ARENA_W / 6, ARENA_L / 6);
 
-const floorMat = new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.7, metalness: 0.2 });
-const floor = new THREE.Mesh(new THREE.PlaneGeometry(ARENA_W * 2, ARENA_L * 2), floorMat);
+const floor = new THREE.Mesh(
+  new THREE.PlaneGeometry(ARENA_W * 2, ARENA_L * 2),
+  new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.7, metalness: 0.2 })
+);
 floor.rotation.x = -Math.PI / 2;
 floor.receiveShadow = true;
 scene.add(floor);
 
-// 2. Perimeter Walls
+// Perimeter Walls
 const wallMat = new THREE.MeshBasicMaterial({ color: 0xff4500, transparent: true, opacity: 0.18, side: THREE.DoubleSide });
 const wallBorderMat = new THREE.MeshBasicMaterial({ color: 0xff5500 });
-const pylonGeo = new THREE.BoxGeometry(3, 16, 3);
 const pylonMat = new THREE.MeshStandardMaterial({ color: 0x1f0e08, roughness: 0.4, metalness: 0.8 });
 
 function buildWall(x, z, w, l) {
   const wall = new THREE.Mesh(new THREE.BoxGeometry(w, 8, l), wallMat);
   wall.position.set(x, 4, z);
   scene.add(wall);
-
   const topRail = new THREE.Mesh(new THREE.BoxGeometry(w + 0.2, 0.4, l + 0.2), wallBorderMat);
   topRail.position.set(x, 8, z);
   scene.add(topRail);
@@ -228,7 +252,7 @@ buildWall(-ARENA_W, 0, 0.8, ARENA_L * 2);
 buildWall(ARENA_W, 0, 0.8, ARENA_L * 2);
 
 [[-ARENA_W, -ARENA_L], [ARENA_W, -ARENA_L], [-ARENA_W, ARENA_L], [ARENA_W, ARENA_L]].forEach(([px, pz]) => {
-  const pylon = new THREE.Mesh(pylonGeo, pylonMat);
+  const pylon = new THREE.Mesh(new THREE.BoxGeometry(3, 16, 3), pylonMat);
   pylon.position.set(px, 8, pz);
   const beacon = new THREE.Mesh(new THREE.SphereGeometry(1.2, 12, 12), new THREE.MeshBasicMaterial({ color: 0xff5500 }));
   beacon.position.set(0, 8.5, 0);
@@ -236,17 +260,13 @@ buildWall(ARENA_W, 0, 0.8, ARENA_L * 2);
   scene.add(pylon);
 });
 
-// --- ADVANCED CHARACTER RIGS ---
-
-// 1. Upgraded Player Mech Rig (Dual Boosters, Rotary Plasma Blaster)
+// --- CHARACTER RIGS ---
 function buildPlayerMech() {
   const root = new THREE.Group();
   const matArmor = new THREE.MeshStandardMaterial({ color: 0x1c2128, roughness: 0.4, metalness: 0.7 });
   const matCyan = new THREE.MeshStandardMaterial({ color: 0x00f0ff, roughness: 0.2, metalness: 0.5 });
   const matVisor = new THREE.MeshBasicMaterial({ color: 0x00ffff });
-  const matExhaust = new THREE.MeshBasicMaterial({ color: 0xff5500 });
 
-  // Chassis
   const torso = new THREE.Mesh(new THREE.BoxGeometry(1.7, 1.9, 1.3), matArmor);
   torso.position.y = 2.4;
   torso.castShadow = true;
@@ -256,18 +276,6 @@ function buildPlayerMech() {
   chestPlating.position.set(0, 0.2, 0.55);
   torso.add(chestPlating);
 
-  // Backpack Boosters
-  [-0.5, 0.5].forEach(bx => {
-    const jet = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.26, 1.4, 10), matArmor);
-    jet.position.set(bx, 0.2, -0.75);
-    const plume = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.5, 8), matExhaust);
-    plume.rotation.x = Math.PI;
-    plume.position.set(0, -0.85, 0);
-    jet.add(plume);
-    torso.add(jet);
-  });
-
-  // Head & Helmet
   const head = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.75, 0.95), matArmor);
   head.position.set(0, 1.4, 0);
   const visor = new THREE.Mesh(new THREE.BoxGeometry(0.75, 0.28, 0.3), matVisor);
@@ -275,34 +283,29 @@ function buildPlayerMech() {
   head.add(visor);
   torso.add(head);
 
-  // Right Rotary Arm Cannon
+  // Blaster Arm
   const rArm = new THREE.Group();
   rArm.position.set(1.25, 0.4, 0);
-  const shoulderR = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 0.7), matCyan);
-  const cannonHousing = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 1.4), matArmor);
-  cannonHousing.position.set(0.1, -0.3, 0.5);
-  
-  // Dual barrels
+  const cannon = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 1.4), matArmor);
+  cannon.position.set(0.1, -0.3, 0.5);
   [-0.12, 0.12].forEach(ox => {
     const b = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 1.2, 8), matCyan);
     b.rotation.x = Math.PI / 2;
     b.position.set(ox + 0.1, -0.3, 1.4);
     rArm.add(b);
   });
-
-  rArm.add(shoulderR, cannonHousing);
+  rArm.add(cannon);
   torso.add(rArm);
 
   // Left Arm
   const lArm = new THREE.Group();
   lArm.position.set(-1.25, 0.4, 0);
-  const shoulderL = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 0.7), matCyan);
   const foreArm = new THREE.Mesh(new THREE.BoxGeometry(0.45, 1.3, 0.45), matArmor);
   foreArm.position.set(0, -0.5, 0);
-  lArm.add(shoulderL, foreArm);
+  lArm.add(foreArm);
   torso.add(lArm);
 
-  // Legs with Armored Shin Guards
+  // Legs
   const legR = new THREE.Group();
   legR.position.set(0.55, 1.0, 0);
   const upperR = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.6, 0.55), matArmor);
@@ -322,14 +325,13 @@ function buildPlayerMech() {
   return root;
 }
 
-// 2. Boss 1: Steel Goliath (Quad-Legged Siege Walker)
 function buildGoliath() {
   const g = new THREE.Group();
   const matHull = new THREE.MeshStandardMaterial({ color: 0x22252a, roughness: 0.5, metalness: 0.8 });
   const matRed = new THREE.MeshStandardMaterial({ color: 0xff0044, roughness: 0.3 });
 
   const core = new THREE.Mesh(new THREE.BoxGeometry(4.2, 2.6, 4.8), matHull);
-  core.position.y = 4.0;
+  core.position.y = 3.8;
   core.castShadow = true;
   g.add(core);
 
@@ -337,7 +339,6 @@ function buildGoliath() {
   dome.position.set(0, 1.4, 0.3);
   core.add(dome);
 
-  // Dual Turrets
   [-1.8, 1.8].forEach(x => {
     const cannon = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.5, 4.5, 12), matHull);
     cannon.rotation.x = Math.PI / 2;
@@ -348,11 +349,11 @@ function buildGoliath() {
   const legs = [];
   [[-2.4, -2], [2.4, -2], [-2.4, 2], [2.4, 2]].forEach(([lx, lz]) => {
     const legPivot = new THREE.Group();
-    legPivot.position.set(lx, 3.2, lz);
+    legPivot.position.set(lx, 3.0, lz);
     const upper = new THREE.Mesh(new THREE.BoxGeometry(0.8, 2.2, 0.8), matHull);
     upper.position.y = -1.0;
     const foot = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.6, 1.8), matRed);
-    foot.position.y = -2.2;
+    foot.position.y = -2.0;
     legPivot.add(upper, foot);
     g.add(legPivot);
     legs.push(legPivot);
@@ -362,7 +363,6 @@ function buildGoliath() {
   return g;
 }
 
-// 3. Boss 2: Cyber Phantom (Hover Recon Mech)
 function buildPhantom() {
   const g = new THREE.Group();
   const matChassis = new THREE.MeshStandardMaterial({ color: 0x1a1528, roughness: 0.3, metalness: 0.9 });
@@ -381,10 +381,8 @@ function buildPhantom() {
 
   const lWing = new THREE.Mesh(new THREE.PlaneGeometry(3.5, 1.2), matWing);
   lWing.position.set(-2.8, 0.5, -0.5);
-  lWing.rotation.y = -0.3;
   const rWing = new THREE.Mesh(new THREE.PlaneGeometry(3.5, 1.2), matWing);
   rWing.position.set(2.8, 0.5, -0.5);
-  rWing.rotation.y = 0.3;
   torso.add(lWing, rWing);
 
   [-0.9, 0.9].forEach(rx => {
@@ -393,11 +391,10 @@ function buildPhantom() {
     torso.add(rail);
   });
 
-  g.parts = { torso, lWing, rWing };
+  g.parts = { torso };
   return g;
 }
 
-// 4. Boss 3: Void Behemoth (Horned Demon Titan)
 function buildBehemoth() {
   const g = new THREE.Group();
   const matObsidian = new THREE.MeshStandardMaterial({ color: 0x12081f, roughness: 0.6, metalness: 0.4 });
@@ -432,7 +429,7 @@ function buildBehemoth() {
   legR.position.set(1.4, 1.4, 0);
   g.add(legL, legR);
 
-  g.parts = { chest, lArm, rArm, legL, legR };
+  g.parts = { chest };
   return g;
 }
 
@@ -440,22 +437,54 @@ function buildBehemoth() {
 const player = {
   mesh: buildPlayerMech(),
   hp: 100, maxHp: 100,
-  speed: 24, vy: 0,
+  speed: 26, vy: 0,
   angle: 0, shootCooldown: 0,
-  animTime: 0
+  animTime: 0,
+  radius: 1.8
 };
 player.mesh.position.set(0, 0, 45);
 scene.add(player.mesh);
 
-// --- PROJECTILES ---
-const bullets = [];
-const bulletGeo = new THREE.SphereGeometry(0.35, 8, 8);
+// --- HEALTH ORB DROP (15-SECOND RECOVERY ORB) ---
+let healthOrb = null;
+let orbSpawnTimer = 15.0;
 
-function fireProjectile(origin, angle, isPlayer = false, color = 0x00f0ff, speed = 46, spread = 0) {
-  const mat = new THREE.MeshBasicMaterial({ color });
-  const mesh = new THREE.Mesh(bulletGeo, mat);
-  mesh.position.copy(origin);
-  mesh.position.y = Math.max(1.0, origin.y);
+function spawnHealthOrb() {
+  if (healthOrb) scene.remove(healthOrb.mesh);
+
+  const root = new THREE.Group();
+  const sphereMat = new THREE.MeshBasicMaterial({ color: 0x00ffaa });
+  const orbMesh = new THREE.Mesh(new THREE.SphereGeometry(1.2, 16, 16), sphereMat);
+  root.add(orbMesh);
+
+  // Rotating energy halo
+  const ringMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff, side: THREE.DoubleSide });
+  const ring = new THREE.Mesh(new THREE.RingGeometry(1.6, 1.9, 16), ringMat);
+  ring.rotation.x = Math.PI / 2;
+  root.add(ring);
+
+  // Random position safely inside arena
+  const rx = (Math.random() - 0.5) * (ARENA_W * 1.5);
+  const rz = (Math.random() - 0.5) * (ARENA_L * 1.5);
+  root.position.set(rx, 2.0, rz);
+  scene.add(root);
+
+  healthOrb = {
+    mesh: root,
+    ring: ring,
+    active: true,
+    radius: 2.2,
+    time: 0
+  };
+}
+
+// --- PROJECTILE FACTORY ---
+const bullets = [];
+const bulletGeo = new THREE.SphereGeometry(0.45, 8, 8);
+
+function fireProjectile(origin, angle, isPlayer = false, color = 0x00f0ff, speed = 48, spread = 0) {
+  const mesh = new THREE.Mesh(bulletGeo, new THREE.MeshBasicMaterial({ color }));
+  mesh.position.set(origin.x, origin.y, origin.z);
   scene.add(mesh);
 
   const dirAngle = angle + spread;
@@ -463,20 +492,20 @@ function fireProjectile(origin, angle, isPlayer = false, color = 0x00f0ff, speed
     mesh, isPlayer,
     vx: Math.sin(dirAngle) * speed,
     vz: Math.cos(dirAngle) * speed,
-    life: 3.2
+    life: 3.0
   });
 }
 
-// --- BOSS LOGIC & PROGRESSION ---
+// --- BOSS STATE & ATTACK DEFINITIONS ---
 let bossesDefeated = 0;
-let bestStreak = parseInt(localStorage.getItem('shootout_best_streak') || '0');
+let bestStreak = parseInt(localStorage.getItem('shootout_best') || '0');
 document.getElementById('best-text').innerText = `BEST: ${bestStreak}`;
 
 let currentBoss = null;
 const bossDefs = [
-  { name: "STEEL GOLIATH", type: 0, build: buildGoliath, maxHp: 220, speed: 6.5, scale: 3.4 },
-  { name: "CYBER PHANTOM", type: 1, build: buildPhantom, maxHp: 320, speed: 12.0, scale: 2.8 },
-  { name: "VOID BEHEMOTH", type: 2, build: buildBehemoth, maxHp: 480, speed: 8.5, scale: 3.8 }
+  { name: "STEEL GOLIATH", type: 0, build: buildGoliath, maxHp: 220, speed: 7.0, radius: 4.2 },
+  { name: "CYBER PHANTOM", type: 1, build: buildPhantom, maxHp: 320, speed: 12.0, radius: 3.4 },
+  { name: "VOID BEHEMOTH", type: 2, build: buildBehemoth, maxHp: 480, speed: 9.0, radius: 4.5 }
 ];
 
 function spawnNextBoss() {
@@ -504,7 +533,7 @@ function spawnNextBoss() {
   document.getElementById('hp-boss-bar').style.width = '100%';
 }
 
-// --- CONTROLS: WASD + SPACE + ENTER / CLICK ---
+// --- CONTROLS: DESKTOP (WASD + ENTER/CLICK) & MOBILE ---
 const input = { forward: 0, right: 0 };
 let isMouseDown = false;
 
@@ -516,21 +545,24 @@ function jump() {
 
 function shoot() {
   if (player.shootCooldown <= 0) {
-    const muzzlePos = new THREE.Vector3(0.5, 2.0, 1.2).applyQuaternion(player.mesh.quaternion).add(player.mesh.position);
-    fireProjectile(muzzlePos, player.angle, true, 0x00f0ff, 50);
+    // Spawn bullet directly from player chest level towards forward aim direction
+    const spawnPos = new THREE.Vector3(
+      player.mesh.position.x + Math.sin(player.angle) * 1.5,
+      2.0,
+      player.mesh.position.z + Math.cos(player.angle) * 1.5
+    );
+    fireProjectile(spawnPos, player.angle, true, 0x00f0ff, 54);
     player.shootCooldown = 0.16;
     playFx('laser');
   }
 }
 
-// Device Detection
 const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 820;
 
 if (isMobile) {
   document.getElementById('mobile-ui').style.display = 'block';
   document.getElementById('desktop-legend').style.display = 'none';
 
-  // Left side Shoot Button
   const sBtn = document.getElementById('btn-shoot');
   let autoShoot = null;
   sBtn.addEventListener('touchstart', (e) => {
@@ -539,20 +571,17 @@ if (isMobile) {
   });
   sBtn.addEventListener('touchend', () => clearInterval(autoShoot));
 
-  // Right side Jump Button (above joystick)
   document.getElementById('btn-jump').addEventListener('touchstart', (e) => {
     e.preventDefault(); jump();
   });
 
-  // Right side Touch Joystick
   const joyZone = document.getElementById('joystick-zone');
   const joyThumb = document.getElementById('joystick-thumb');
   let touchId = null, baseRect = null;
 
   joyZone.addEventListener('touchstart', (e) => {
     e.preventDefault();
-    const touch = e.changedTouches[0];
-    touchId = touch.identifier;
+    touchId = e.changedTouches[0].identifier;
     baseRect = joyZone.getBoundingClientRect();
   });
 
@@ -585,7 +614,6 @@ if (isMobile) {
   window.addEventListener('touchcancel', endJoy);
 
 } else {
-  // Desktop Controls: WASD + Space + Enter / Mouse Click
   const keys = {};
 
   window.addEventListener('keydown', (e) => {
@@ -611,10 +639,7 @@ if (isMobile) {
   });
 
   window.addEventListener('mousedown', (e) => {
-    if (e.button === 0) {
-      isMouseDown = true;
-      shoot();
-    }
+    if (e.button === 0) { isMouseDown = true; shoot(); }
   });
 
   window.addEventListener('mouseup', (e) => {
@@ -624,15 +649,11 @@ if (isMobile) {
   function pollDesktop() {
     input.forward = (keys['KeyW'] ? 1 : 0) - (keys['KeyS'] ? 1 : 0);
     input.right   = (keys['KeyD'] ? 1 : 0) - (keys['KeyA'] ? 1 : 0);
-
-    // Continuous fire while holding Enter key OR Mouse Button
-    if (keys['EnterKey'] || isMouseDown) {
-      shoot();
-    }
+    if (keys['EnterKey'] || isMouseDown) shoot();
   }
 }
 
-// --- DAMAGE & RESTART LOOP ---
+// --- DAMAGE, HEALING, & RESTART LOOP ---
 function takeDamage(amt) {
   player.hp -= amt;
   playFx('hit');
@@ -646,18 +667,30 @@ function takeDamage(amt) {
   }
 }
 
+function healPlayer(pct) {
+  const add = player.maxHp * pct;
+  player.hp = Math.min(player.maxHp, player.hp + add);
+  playFx('heal');
+
+  const toast = document.getElementById('orb-toast');
+  toast.style.opacity = '1';
+  setTimeout(() => toast.style.opacity = '0', 1600);
+}
+
 function resetGame() {
   player.hp = player.maxHp;
   player.mesh.position.set(0, 0, 45);
   player.vy = 0;
   bossesDefeated = 0;
-  document.getElementById('score-text').innerText = `BOSSES CONQUERED: 0`;
+  orbSpawnTimer = 15.0;
+  document.getElementById('score-text').innerText = `CONQUERED: 0`;
   bullets.forEach(b => scene.remove(b.mesh));
   bullets.length = 0;
+  if (healthOrb) { scene.remove(healthOrb.mesh); healthOrb = null; }
   spawnNextBoss();
 }
 
-// --- ENGINE LOOP ---
+// --- GAME LOOP ---
 let lastFrameTime = performance.now();
 spawnNextBoss();
 
@@ -675,7 +708,6 @@ function update(dt) {
 
     if (isMobile) player.angle = Math.atan2(-normR, normF);
 
-    // Stride Animation
     player.animTime += dt * 14;
     player.mesh.parts.legR.rotation.x = Math.sin(player.animTime) * 0.55;
     player.mesh.parts.legL.rotation.x = -Math.sin(player.animTime) * 0.55;
@@ -686,11 +718,9 @@ function update(dt) {
     player.mesh.parts.lArm.rotation.x = 0;
   }
 
-  // Constrain inside Rectangular Arena
   player.mesh.position.x = Math.max(-ARENA_W + 2, Math.min(ARENA_W - 2, player.mesh.position.x));
   player.mesh.position.z = Math.max(-ARENA_L + 2, Math.min(ARENA_L - 2, player.mesh.position.z));
 
-  // Jump & Gravity
   player.mesh.position.y += player.vy * dt;
   if (player.mesh.position.y > 0) {
     player.vy -= 30 * dt;
@@ -707,7 +737,32 @@ function update(dt) {
   camera.position.z = player.mesh.position.z + 24;
   camera.lookAt(player.mesh.position.x, player.mesh.position.y + 3.0, player.mesh.position.z - 8);
 
-  // 3. Boss Behaviors & Patterns
+  // 3. 15-Second Health Orb Spawner & Pickup Check
+  orbSpawnTimer -= dt;
+  if (orbSpawnTimer <= 0) {
+    spawnHealthOrb();
+    orbSpawnTimer = 15.0;
+  }
+
+  if (healthOrb && healthOrb.active) {
+    healthOrb.time += dt;
+    healthOrb.mesh.position.y = 2.0 + Math.sin(healthOrb.time * 3) * 0.4;
+    healthOrb.ring.rotation.z += dt * 2.5;
+
+    // Check Player Pickup
+    const distToOrb = Math.hypot(
+      player.mesh.position.x - healthOrb.mesh.position.x,
+      player.mesh.position.z - healthOrb.mesh.position.z
+    );
+
+    if (distToOrb < player.radius + healthOrb.radius) {
+      healPlayer(0.20);
+      scene.remove(healthOrb.mesh);
+      healthOrb = null;
+    }
+  }
+
+  // 4. Boss Behaviors & Attacks
   if (currentBoss) {
     const toPlayer = new THREE.Vector3().subVectors(player.mesh.position, currentBoss.mesh.position);
     const dist = toPlayer.length();
@@ -720,7 +775,7 @@ function update(dt) {
     const targetAngle = Math.atan2(toPlayer.x, toPlayer.z);
     currentBoss.mesh.rotation.y = targetAngle;
 
-    if (currentBoss.type === 0) { // Goliath: Forward march & spread blast
+    if (currentBoss.type === 0) { // Steel Goliath
       if (dist > 18) {
         currentBoss.mesh.position.x += toPlayer.x * currentBoss.speed * dt;
         currentBoss.mesh.position.z += toPlayer.z * currentBoss.speed * dt;
@@ -731,13 +786,14 @@ function update(dt) {
 
       if (currentBoss.attackTimer <= 0) {
         for (let s = -0.35; s <= 0.35; s += 0.35) {
-          fireProjectile(currentBoss.mesh.position.clone().add(new THREE.Vector3(0, 3.8, 0)), targetAngle, false, 0xff0055, 26, s);
+          const spawnB = new THREE.Vector3(currentBoss.mesh.position.x, 3.8, currentBoss.mesh.position.z);
+          fireProjectile(spawnB, targetAngle, false, 0xff0055, 26, s);
         }
         playFx('boss_shot');
         currentBoss.attackTimer = 1.3;
       }
     } 
-    else if (currentBoss.type === 1) { // Phantom: Erratic hovering & railgun salvo
+    else if (currentBoss.type === 1) { // Cyber Phantom
       const strafeX = -toPlayer.z;
       const strafeZ = toPlayer.x;
       const strafeDir = Math.sin(currentBoss.stateTimer * 2) > 0 ? 1 : -1;
@@ -747,12 +803,13 @@ function update(dt) {
       currentBoss.mesh.position.y = 3.5 + Math.sin(currentBoss.stateTimer * 4) * 0.8;
 
       if (currentBoss.attackTimer <= 0) {
-        fireProjectile(currentBoss.mesh.position.clone().add(new THREE.Vector3(0, 2, 0)), targetAngle, false, 0xffbb00, 38, (Math.random() - 0.5) * 0.15);
+        const spawnB = new THREE.Vector3(currentBoss.mesh.position.x, 2.5, currentBoss.mesh.position.z);
+        fireProjectile(spawnB, targetAngle, false, 0xffbb00, 36, (Math.random() - 0.5) * 0.15);
         playFx('boss_shot');
         currentBoss.attackTimer = 0.38;
       }
     } 
-    else if (currentBoss.type === 2) { // Behemoth: Periodic charges & shockwave bursts
+    else if (currentBoss.type === 2) { // Void Behemoth
       if (currentBoss.chargeTimer > 0) {
         currentBoss.chargeTimer -= dt;
         currentBoss.mesh.position.x += toPlayer.x * 24 * dt;
@@ -763,8 +820,9 @@ function update(dt) {
       }
 
       if (currentBoss.attackTimer <= 0) {
+        const spawnB = new THREE.Vector3(currentBoss.mesh.position.x, 2.5, currentBoss.mesh.position.z);
         for (let i = 0; i < 14; i++) {
-          fireProjectile(currentBoss.mesh.position.clone().add(new THREE.Vector3(0, 2.5, 0)), (i / 14) * Math.PI * 2, false, 0xa100ff, 20);
+          fireProjectile(spawnB, (i / 14) * Math.PI * 2, false, 0xa100ff, 20);
         }
         playFx('boss_shot');
         currentBoss.chargeTimer = 1.0;
@@ -776,7 +834,7 @@ function update(dt) {
     currentBoss.mesh.position.z = Math.max(-ARENA_L + 4, Math.min(ARENA_L - 4, currentBoss.mesh.position.z));
   }
 
-  // 4. Projectiles Physics & Collision Checks
+  // 5. Accurate 2D/3D Bullet Hit Detection
   for (let i = bullets.length - 1; i >= 0; i--) {
     const b = bullets[i];
     b.mesh.position.x += b.vx * dt;
@@ -791,8 +849,12 @@ function update(dt) {
 
     // Player Bullet -> Hits Boss
     if (b.isPlayer && currentBoss) {
-      const bDist = b.mesh.position.distanceTo(currentBoss.mesh.position.clone().add(new THREE.Vector3(0, 2.5, 0)));
-      if (bDist < currentBoss.scale) {
+      const distXZ = Math.hypot(
+        b.mesh.position.x - currentBoss.mesh.position.x,
+        b.mesh.position.z - currentBoss.mesh.position.z
+      );
+
+      if (distXZ < currentBoss.radius) {
         currentBoss.hp -= 12;
         scene.remove(b.mesh);
         bullets.splice(i, 1);
@@ -800,10 +862,10 @@ function update(dt) {
         if (currentBoss.hp <= 0) {
           playFx('explode');
           bossesDefeated++;
-          document.getElementById('score-text').innerText = `BOSSES CONQUERED: ${bossesDefeated}`;
+          document.getElementById('score-text').innerText = `CONQUERED: ${bossesDefeated}`;
           if (bossesDefeated > bestStreak) {
             bestStreak = bossesDefeated;
-            localStorage.setItem('shootout_best_streak', bestStreak);
+            localStorage.setItem('shootout_best', bestStreak);
             document.getElementById('best-text').innerText = `BEST: ${bestStreak}`;
           }
           spawnNextBoss();
@@ -812,11 +874,15 @@ function update(dt) {
       }
     }
 
-    // Boss Bullet -> Hits Player Mech
+    // Boss Bullet -> Hits Player
     if (!b.isPlayer) {
-      const pCenter = player.mesh.position.clone().add(new THREE.Vector3(0, 1.8, 0));
-      if (b.mesh.position.distanceTo(pCenter) < 1.4) {
-        takeDamage(14);
+      const distXZ = Math.hypot(
+        b.mesh.position.x - player.mesh.position.x,
+        b.mesh.position.z - player.mesh.position.z
+      );
+
+      if (distXZ < player.radius) {
+        takeDamage(12);
         scene.remove(b.mesh);
         bullets.splice(i, 1);
         continue;
@@ -824,7 +890,7 @@ function update(dt) {
     }
   }
 
-  // 5. Update Health Bars
+  // 6. Update Vitality Bars
   document.getElementById('hp-player-bar').style.width = Math.max(0, (player.hp / player.maxHp) * 100) + '%';
   if (currentBoss) {
     document.getElementById('hp-boss-bar').style.width = Math.max(0, (currentBoss.hp / currentBoss.maxHp) * 100) + '%';
