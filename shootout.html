@@ -13,16 +13,16 @@
   /* HUD */
   #hud {
     position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
-    width: 90%; max-width: 580px; display: flex; flex-direction: column; gap: 6px;
+    width: 90%; max-width: 600px; display: flex; flex-direction: column; gap: 7px;
     pointer-events: none; z-index: 10;
   }
   #stats-panel {
     display: flex; justify-content: space-between; align-items: center;
-    font-family: 'Orbitron', sans-serif; font-size: 13px; letter-spacing: 1px;
+    font-family: 'Orbitron', sans-serif; font-size: 13px; letter-spacing: 1.5px;
     text-shadow: 0 0 10px #00f0ff;
   }
   .bar-container {
-    background: rgba(8, 12, 28, 0.75); border: 2px solid rgba(255, 255, 255, 0.2);
+    background: rgba(8, 12, 28, 0.8); border: 2px solid rgba(255, 255, 255, 0.2);
     border-radius: 8px; height: 18px; position: relative; overflow: hidden;
     backdrop-filter: blur(6px);
   }
@@ -36,10 +36,10 @@
     text-shadow: 0 0 6px #000;
   }
 
-  /* Crosshair */
+  /* Center Crosshair */
   #reticle {
     position: absolute; top: 50%; left: 50%; width: 18px; height: 18px;
-    transform: translate(-50%, -50%); border: 2px solid rgba(0, 240, 255, 0.4);
+    transform: translate(-50%, -50%); border: 2px solid rgba(0, 240, 255, 0.45);
     border-radius: 50%; pointer-events: none; z-index: 5;
   }
   #reticle::after {
@@ -47,7 +47,7 @@
     background: #00f0ff; transform: translate(-50%, -50%); border-radius: 50%;
   }
 
-  /* Mobile Controls */
+  /* Mobile Touch Controls */
   #mobile-ui { display: none; position: absolute; inset: 0; pointer-events: none; z-index: 20; }
   .touch-btn {
     pointer-events: auto; position: absolute; border-radius: 50%;
@@ -62,7 +62,7 @@
     box-shadow: 0 0 18px rgba(255, 0, 85, 0.35);
   }
   #btn-jump {
-    right: 45px; bottom: 165px; width: 58px; height: 58px;
+    right: 48px; bottom: 165px; width: 58px; height: 58px;
     background: rgba(0, 255, 170, 0.25); border-color: #00ffaa; color: #a6ffd8;
     box-shadow: 0 0 15px rgba(0, 255, 170, 0.35);
   }
@@ -77,10 +77,16 @@
     box-shadow: 0 0 14px #00f0ff; pointer-events: none;
   }
 
-  /* Flash overlay on damage */
+  /* Damage Screen Flash */
   #hit-flash {
     position: absolute; inset: 0; pointer-events: none; background: rgba(255, 0, 50, 0.35);
     opacity: 0; transition: opacity 0.08s ease; z-index: 15;
+  }
+
+  /* Desktop Key Legend Note */
+  #desktop-legend {
+    position: absolute; bottom: 12px; left: 16px; font-size: 11px;
+    color: rgba(255, 255, 255, 0.45); letter-spacing: 1px; pointer-events: none;
   }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -97,11 +103,11 @@
   </div>
   <div class="bar-container">
     <div id="hp-player-bar" class="bar-fill"></div>
-    <div class="bar-label">MECH VITALITY</div>
+    <div class="bar-label">MECH INTEGRITY</div>
   </div>
   <div class="bar-container">
     <div id="hp-boss-bar" class="bar-fill"></div>
-    <div id="boss-name" class="bar-label">TITAN TARGET</div>
+    <div id="boss-name" class="bar-label">TARGET: STEEL GOLIATH</div>
   </div>
 </div>
 
@@ -111,8 +117,10 @@
   <div id="joystick-zone"><div id="joystick-thumb"></div></div>
 </div>
 
+<div id="desktop-legend">WASD = MOVE | SPACE = JUMP | CLICK / SHIFT = SHOOT</div>
+
 <script>
-// --- AUDIO SYNTHESIS ENGINE ---
+// --- AUDIO SYNTHESIS ENGINE (Web Audio API) ---
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 function playFx(type) {
   if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -123,36 +131,36 @@ function playFx(type) {
 
   if (type === 'laser') {
     osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(750, now);
-    osc.frequency.exponentialRampToValueAtTime(90, now + 0.12);
-    gain.gain.setValueAtTime(0.25, now);
+    osc.frequency.setValueAtTime(800, now);
+    osc.frequency.exponentialRampToValueAtTime(100, now + 0.12);
+    gain.gain.setValueAtTime(0.2, now);
     gain.gain.linearRampToValueAtTime(0, now + 0.12);
     osc.start(now); osc.stop(now + 0.12);
   } else if (type === 'boss_shot') {
     osc.type = 'triangle';
-    osc.frequency.setValueAtTime(280, now);
+    osc.frequency.setValueAtTime(260, now);
     osc.frequency.exponentialRampToValueAtTime(45, now + 0.22);
-    gain.gain.setValueAtTime(0.35, now);
+    gain.gain.setValueAtTime(0.3, now);
     gain.gain.linearRampToValueAtTime(0, now + 0.22);
     osc.start(now); osc.stop(now + 0.22);
   } else if (type === 'hit') {
     osc.type = 'square';
     osc.frequency.setValueAtTime(120, now);
     osc.frequency.linearRampToValueAtTime(30, now + 0.15);
-    gain.gain.setValueAtTime(0.4, now);
+    gain.gain.setValueAtTime(0.35, now);
     gain.gain.linearRampToValueAtTime(0, now + 0.15);
     osc.start(now); osc.stop(now + 0.15);
   } else if (type === 'explode') {
     osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(60, now);
+    osc.frequency.setValueAtTime(70, now);
     osc.frequency.linearRampToValueAtTime(15, now + 0.45);
-    gain.gain.setValueAtTime(0.6, now);
+    gain.gain.setValueAtTime(0.5, now);
     gain.gain.linearRampToValueAtTime(0, now + 0.45);
     osc.start(now); osc.stop(now + 0.45);
   }
 }
 
-// --- THREE.JS SCENE INITIALIZATION ---
+// --- THREE.JS SCENE SETUP ---
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x040510);
 scene.fog = new THREE.FogExp2(0x040510, 0.012);
@@ -165,9 +173,7 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.body.appendChild(renderer.domElement);
 
 // Lighting
-const ambLight = new THREE.AmbientLight(0x354060, 1.2);
-scene.add(ambLight);
-
+scene.add(new THREE.AmbientLight(0x354060, 1.2));
 const dirLight = new THREE.DirectionalLight(0xaad5ff, 1.4);
 dirLight.position.set(30, 60, 40);
 dirLight.castShadow = true;
@@ -179,7 +185,7 @@ scene.add(dirLight);
 const ARENA_W = 60;  // X half-span (-60 to +60)
 const ARENA_L = 90;  // Z half-span (-90 to +90)
 
-// 1. Grid Floor
+// 1. Grid Floor Texture
 const floorTexCanvas = document.createElement('canvas');
 floorTexCanvas.width = 256; floorTexCanvas.height = 256;
 const fCtx = floorTexCanvas.getContext('2d');
@@ -229,8 +235,9 @@ buildWall(ARENA_W, 0, 0.8, ARENA_L * 2);
   scene.add(pylon);
 });
 
-// --- CHARACTER FACTORY (LOW-POLY RIGS) ---
-// 1. Player Combat Mech Model
+// --- CHARACTER MODELS ---
+
+// 1. Player Combat Mech Rig
 function buildPlayerMech() {
   const root = new THREE.Group();
   const matArmor = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.4, metalness: 0.6 });
@@ -290,12 +297,11 @@ function buildPlayerMech() {
   return root;
 }
 
-// 2. Boss 1: Steel Goliath (Quad-Legged Armored Siege Walker)
+// 2. Boss 1: Steel Goliath (Siege Walker)
 function buildGoliath() {
   const g = new THREE.Group();
   const matHull = new THREE.MeshStandardMaterial({ color: 0x22252a, roughness: 0.5, metalness: 0.8 });
   const matRed = new THREE.MeshStandardMaterial({ color: 0xff0044, roughness: 0.3 });
-  const matGlow = new THREE.MeshBasicMaterial({ color: 0xff1e56 });
 
   const core = new THREE.Mesh(new THREE.BoxGeometry(4.2, 2.6, 4.8), matHull);
   core.position.y = 4.0;
@@ -306,7 +312,6 @@ function buildGoliath() {
   dome.position.set(0, 1.4, 0.3);
   core.add(dome);
 
-  // Dual Turrets
   [-1.8, 1.8].forEach(x => {
     const cannon = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.5, 4.5, 12), matHull);
     cannon.rotation.x = Math.PI / 2;
@@ -314,9 +319,8 @@ function buildGoliath() {
     core.add(cannon);
   });
 
-  // 4 Robust Legs
   const legs = [];
-  [[-2.4, -2], [2.4, -2], [-2.4, 2], [2.4, 2]].forEach(([lx, lz], i) => {
+  [[-2.4, -2], [2.4, -2], [-2.4, 2], [2.4, 2]].forEach(([lx, lz]) => {
     const legPivot = new THREE.Group();
     legPivot.position.set(lx, 3.2, lz);
     const upper = new THREE.Mesh(new THREE.BoxGeometry(0.8, 2.2, 0.8), matHull);
@@ -332,7 +336,7 @@ function buildGoliath() {
   return g;
 }
 
-// 3. Boss 2: Cyber Phantom (Hover Recon Mech with Plasma Wings)
+// 3. Boss 2: Cyber Phantom (Hover Recon Mech)
 function buildPhantom() {
   const g = new THREE.Group();
   const matChassis = new THREE.MeshStandardMaterial({ color: 0x1a1528, roughness: 0.3, metalness: 0.9 });
@@ -349,7 +353,6 @@ function buildPhantom() {
   head.position.set(0, 1.8, 0);
   torso.add(head);
 
-  // Swept Plasma Wing Blades
   const lWing = new THREE.Mesh(new THREE.PlaneGeometry(3.5, 1.2), matWing);
   lWing.position.set(-2.8, 0.5, -0.5);
   lWing.rotation.y = -0.3;
@@ -358,7 +361,6 @@ function buildPhantom() {
   rWing.rotation.y = 0.3;
   torso.add(lWing, rWing);
 
-  // Twin Rail Accelerators
   [-0.9, 0.9].forEach(rx => {
     const rail = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, 3.2), matGold);
     rail.position.set(rx, -0.6, 1.4);
@@ -369,7 +371,7 @@ function buildPhantom() {
   return g;
 }
 
-// 4. Boss 3: Void Behemoth (Armored Horned Demon Titan)
+// 4. Boss 3: Void Behemoth (Horned Demon Titan)
 function buildBehemoth() {
   const g = new THREE.Group();
   const matObsidian = new THREE.MeshStandardMaterial({ color: 0x12081f, roughness: 0.6, metalness: 0.4 });
@@ -385,7 +387,6 @@ function buildBehemoth() {
   crest.position.set(0, 2.4, 0.4);
   chest.add(crest);
 
-  // Horns
   [-1.4, 1.4].forEach(hx => {
     const horn = new THREE.Mesh(new THREE.ConeGeometry(0.55, 2.4, 8), matHorns);
     horn.position.set(hx, 1.2, 0);
@@ -393,14 +394,12 @@ function buildBehemoth() {
     crest.add(horn);
   });
 
-  // Massive Fist Arms
   const lArm = new THREE.Mesh(new THREE.BoxGeometry(1.4, 3.6, 1.4), matObsidian);
   lArm.position.set(-3.2, 0.2, 0.4);
   const rArm = new THREE.Mesh(new THREE.BoxGeometry(1.4, 3.6, 1.4), matObsidian);
   rArm.position.set(3.2, 0.2, 0.4);
   chest.add(lArm, rArm);
 
-  // Pillar Legs
   const legL = new THREE.Mesh(new THREE.BoxGeometry(1.6, 2.8, 1.6), matObsidian);
   legL.position.set(-1.4, 1.4, 0);
   const legR = new THREE.Mesh(new THREE.BoxGeometry(1.6, 2.8, 1.6), matObsidian);
@@ -422,7 +421,7 @@ const player = {
 player.mesh.position.set(0, 0, 45);
 scene.add(player.mesh);
 
-// --- PROJECTILES & PARTICLES ---
+// --- PROJECTILES ---
 const bullets = [];
 const bulletGeo = new THREE.SphereGeometry(0.35, 8, 8);
 
@@ -479,18 +478,15 @@ function spawnNextBoss() {
   document.getElementById('hp-boss-bar').style.width = '100%';
 }
 
-// --- INPUTS & CONTROLS INTERFACE ---
+// --- INPUTS & CONTROLS ---
 const input = { forward: 0, right: 0 };
 
-function moveForward(v = 1) { input.forward = v; }
-function moveBack(v = 1)    { input.forward = -v; }
-function moveLeft(v = 1)    { input.right = -v; }
-function moveRight(v = 1)   { input.right = v; }
 function jump() {
   if (player.mesh.position.y <= 0.05) {
     player.vy = 12.0;
   }
 }
+
 function shoot() {
   if (player.shootCooldown <= 0) {
     const muzzlePos = new THREE.Vector3(0.5, 2.0, 1.2).applyQuaternion(player.mesh.quaternion).add(player.mesh.position);
@@ -505,8 +501,9 @@ const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window
 
 if (isMobile) {
   document.getElementById('mobile-ui').style.display = 'block';
+  document.getElementById('desktop-legend').style.display = 'none';
 
-  // Shoot button on left
+  // Left side Shoot Button
   const sBtn = document.getElementById('btn-shoot');
   let autoShoot = null;
   sBtn.addEventListener('touchstart', (e) => {
@@ -515,12 +512,12 @@ if (isMobile) {
   });
   sBtn.addEventListener('touchend', () => clearInterval(autoShoot));
 
-  // Jump button on right
+  // Right side Jump Button (above joystick)
   document.getElementById('btn-jump').addEventListener('touchstart', (e) => {
     e.preventDefault(); jump();
   });
 
-  // Joystick on right
+  // Right side Touch Joystick
   const joyZone = document.getElementById('joystick-zone');
   const joyThumb = document.getElementById('joystick-thumb');
   let touchId = null, baseRect = null;
@@ -561,11 +558,12 @@ if (isMobile) {
   window.addEventListener('touchcancel', endJoy);
 
 } else {
-  // Desktop WASD + Mouse
+  // Desktop Controls: WASD + Space + Mouse Click OR Shift Key
   const keys = {};
   window.addEventListener('keydown', (e) => {
     keys[e.code] = true;
     if (e.code === 'Space') jump();
+    if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') shoot();
   });
   window.addEventListener('keyup', (e) => keys[e.code] = false);
 
@@ -610,14 +608,14 @@ function resetGame() {
   spawnNextBoss();
 }
 
-// --- ENGINE CYCLE (UPDATE & RENDER) ---
+// --- ENGINE LOOP ---
 let lastFrameTime = performance.now();
 spawnNextBoss();
 
 function update(dt) {
   if (!isMobile) pollDesktop();
 
-  // 1. Player Kinematics
+  // 1. Move Player
   const moveMag = Math.hypot(input.forward, input.right);
   if (moveMag > 0.05) {
     const normF = input.forward / Math.max(1, moveMag);
@@ -628,7 +626,7 @@ function update(dt) {
 
     if (isMobile) player.angle = Math.atan2(-normR, normF);
 
-    // Stride Gait Animation
+    // Stride Animation
     player.animTime += dt * 14;
     player.mesh.parts.legR.rotation.x = Math.sin(player.animTime) * 0.55;
     player.mesh.parts.legL.rotation.x = -Math.sin(player.animTime) * 0.55;
@@ -670,12 +668,10 @@ function update(dt) {
     currentBoss.attackTimer -= dt;
     currentBoss.stateTimer += dt;
 
-    // Boss Facing
     const targetAngle = Math.atan2(toPlayer.x, toPlayer.z);
     currentBoss.mesh.rotation.y = targetAngle;
 
-    // Movement by Boss archetype
-    if (currentBoss.type === 0) { // Goliath: Heavy advancing stride
+    if (currentBoss.type === 0) { // Goliath: Forward march & spread blast
       if (dist > 18) {
         currentBoss.mesh.position.x += toPlayer.x * currentBoss.speed * dt;
         currentBoss.mesh.position.z += toPlayer.z * currentBoss.speed * dt;
@@ -685,7 +681,6 @@ function update(dt) {
       });
 
       if (currentBoss.attackTimer <= 0) {
-        // Alternating heavy spread cannons
         for (let s = -0.35; s <= 0.35; s += 0.35) {
           fireProjectile(currentBoss.mesh.position.clone().add(new THREE.Vector3(0, 3.8, 0)), targetAngle, false, 0xff0055, 26, s);
         }
@@ -693,7 +688,7 @@ function update(dt) {
         currentBoss.attackTimer = 1.3;
       }
     } 
-    else if (currentBoss.type === 1) { // Phantom: Strafe & Railgun Salvos
+    else if (currentBoss.type === 1) { // Phantom: Erratic hovering & railgun salvo
       const strafeX = -toPlayer.z;
       const strafeZ = toPlayer.x;
       const strafeDir = Math.sin(currentBoss.stateTimer * 2) > 0 ? 1 : -1;
@@ -708,7 +703,7 @@ function update(dt) {
         currentBoss.attackTimer = 0.38;
       }
     } 
-    else if (currentBoss.type === 2) { // Behemoth: Periodic Arena Charges + Shockwaves
+    else if (currentBoss.type === 2) { // Behemoth: Periodic charges & shockwave bursts
       if (currentBoss.chargeTimer > 0) {
         currentBoss.chargeTimer -= dt;
         currentBoss.mesh.position.x += toPlayer.x * 24 * dt;
@@ -719,7 +714,6 @@ function update(dt) {
       }
 
       if (currentBoss.attackTimer <= 0) {
-        // Radial Nova Blast
         for (let i = 0; i < 14; i++) {
           fireProjectile(currentBoss.mesh.position.clone().add(new THREE.Vector3(0, 2.5, 0)), (i / 14) * Math.PI * 2, false, 0xa100ff, 20);
         }
@@ -729,7 +723,6 @@ function update(dt) {
       }
     }
 
-    // Keep Boss Inside Arena Bounds
     currentBoss.mesh.position.x = Math.max(-ARENA_W + 4, Math.min(ARENA_W - 4, currentBoss.mesh.position.x));
     currentBoss.mesh.position.z = Math.max(-ARENA_L + 4, Math.min(ARENA_L - 4, currentBoss.mesh.position.z));
   }
@@ -741,7 +734,6 @@ function update(dt) {
     b.mesh.position.z += b.vz * dt;
     b.life -= dt;
 
-    // Check Wall Collisions
     if (Math.abs(b.mesh.position.x) >= ARENA_W || Math.abs(b.mesh.position.z) >= ARENA_L || b.life <= 0) {
       scene.remove(b.mesh);
       bullets.splice(i, 1);
