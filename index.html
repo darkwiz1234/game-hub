@@ -3,592 +3,297 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ARCADE HUB ⚡ — Neon Cyber Games</title>
+    <title>ARCADE HUB 🕹️</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;900&family=Inter:wght@400;500;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Rajdhani:wght@500;700&display=swap');
 
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
-            user-select: none;
-        }
-
-        :root {
-            --cyan: #00f0ff;
-            --pink: #ff00ea;
-            --lime: #39ff14;
-            --dark-bg: #04020a;
         }
 
         body {
-            font-family: 'Inter', sans-serif;
-            background: #04020a;
+            background: radial-gradient(circle at top center, #100a26 0%, #060410 70%, #020106 100%);
             color: #ffffff;
+            font-family: 'Rajdhani', sans-serif;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
+            align-items: center;
+            justify-content: center;
             overflow-x: hidden;
             position: relative;
+            padding: 40px 20px;
         }
 
-        .orbitron {
-            font-family: 'Orbitron', sans-serif;
-        }
-
-        /* Ambient animated background grid lines */
-        .grid-backdrop {
+        .grid-bg {
             position: fixed;
-            inset: 0;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             background-image: 
                 linear-gradient(rgba(0, 240, 255, 0.04) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255, 0, 234, 0.04) 1px, transparent 1px);
-            background-size: 45px 45px;
+                linear-gradient(90deg, rgba(0, 240, 255, 0.04) 1px, transparent 1px);
+            background-size: 50px 50px;
             pointer-events: none;
             z-index: 0;
         }
 
-        /* Floating background canvas */
-        #bgCanvas {
+        .ambient-glow {
             position: fixed;
-            inset: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 1;
-        }
-
-        /* Header Bar */
-        header {
-            position: relative;
-            z-index: 10;
-            padding: 45px 20px 20px;
-            text-align: center;
-        }
-
-        .badge-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 6px 18px;
-            border-radius: 9999px;
-            background: rgba(0, 240, 255, 0.08);
-            border: 1px solid rgba(0, 240, 255, 0.4);
-            color: var(--cyan);
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            box-shadow: 0 0 16px rgba(0, 240, 255, 0.25);
-            margin-bottom: 14px;
-        }
-
-        .status-dot {
-            width: 8px;
-            height: 8px;
+            width: 500px;
+            height: 500px;
             border-radius: 50%;
-            background: var(--lime);
-            box-shadow: 0 0 8px var(--lime);
-            animation: pulseDot 1.8s infinite;
+            filter: blur(140px);
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.25;
+        }
+        .glow-1 { top: -100px; left: 10%; background: #00f0ff; }
+        .glow-2 { bottom: -100px; right: 10%; background: #ff00ea; }
+        .glow-3 { top: 40%; left: 40%; background: #ff3300; opacity: 0.18; }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 1100px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 40px;
         }
 
-        @keyframes pulseDot {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.4; transform: scale(0.85); }
+        header {
+            text-align: center;
         }
 
         h1 {
-            font-size: clamp(2.4rem, 6vw, 4.2rem);
+            font-family: 'Orbitron', sans-serif;
+            font-size: clamp(2.2rem, 5vw, 3.6rem);
             font-weight: 900;
-            letter-spacing: 3px;
+            letter-spacing: 4px;
             text-transform: uppercase;
-            background: linear-gradient(135deg, #00f0ff 0%, #ffffff 45%, #ff00ea 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            filter: drop-shadow(0 0 25px rgba(0, 240, 255, 0.45));
-            line-height: 1.1;
+            color: #ffffff;
+            text-shadow: 0 0 20px rgba(0, 240, 255, 0.6), 0 0 40px rgba(255, 0, 234, 0.3);
+            margin-bottom: 8px;
         }
 
-        .subtitle {
-            margin-top: 10px;
-            font-size: 14px;
-            color: #94a3b8;
-            letter-spacing: 1px;
+        header p {
+            font-size: 1.2rem;
+            color: #8c9bb5;
+            letter-spacing: 2px;
+            text-transform: uppercase;
         }
 
-        /* Hub Content Layout */
-        main {
-            position: relative;
-            z-index: 10;
-            width: 100%;
-            max-width: 1120px;
-            margin: 0 auto;
-            padding: 30px 24px 60px;
-            flex-grow: 1;
-            display: flex;
-            align-items: center;
-        }
-
-        .cards-grid {
+        .games-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-            gap: 36px;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 26px;
             width: 100%;
         }
 
-        /* Game Card Structure */
         .game-card {
-            background: rgba(10, 14, 28, 0.78);
-            border-radius: 18px;
-            padding: 28px;
+            background: rgba(13, 10, 29, 0.7);
+            border: 2px solid;
+            border-radius: 16px;
+            padding: 30px 24px;
+            text-decoration: none;
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
-            position: relative;
-            backdrop-filter: blur(14px);
-            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s, border-color 0.3s;
-            overflow: hidden;
-        }
-
-        .game-card:hover {
-            transform: translateY(-8px) scale(1.015);
-        }
-
-        /* Card Themes */
-        .card-cyan {
-            border: 2px solid rgba(0, 240, 255, 0.35);
-            box-shadow: 0 0 30px rgba(0, 240, 255, 0.12), inset 0 0 20px rgba(0, 240, 255, 0.04);
-        }
-        .card-cyan:hover {
-            border-color: var(--cyan);
-            box-shadow: 0 16px 45px rgba(0, 240, 255, 0.35), inset 0 0 25px rgba(0, 240, 255, 0.1);
-        }
-
-        .card-pink {
-            border: 2px solid rgba(255, 0, 234, 0.35);
-            box-shadow: 0 0 30px rgba(255, 0, 234, 0.12), inset 0 0 20px rgba(255, 0, 234, 0.04);
-        }
-        .card-pink:hover {
-            border-color: var(--pink);
-            box-shadow: 0 16px 45px rgba(255, 0, 234, 0.35), inset 0 0 25px rgba(255, 0, 234, 0.1);
-        }
-
-        /* Top Tag & Mode */
-        .card-top {
-            display: flex;
-            justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .tag {
-            font-size: 11px;
-            font-weight: 800;
-            letter-spacing: 1.5px;
-            padding: 5px 12px;
-            border-radius: 6px;
-            text-transform: uppercase;
-        }
-        .tag-cyan {
-            background: rgba(0, 240, 255, 0.15);
-            color: var(--cyan);
-            border: 1px solid var(--cyan);
-        }
-        .tag-pink {
-            background: rgba(255, 0, 234, 0.15);
-            color: var(--pink);
-            border: 1px solid var(--pink);
-        }
-
-        .mode-label {
-            font-size: 11px;
-            color: #64748b;
-            font-weight: 700;
-            letter-spacing: 1px;
-        }
-
-        /* Vector Graphic Displays */
-        .preview-box {
-            width: 100%;
-            height: 160px;
-            border-radius: 12px;
-            background: #060918;
-            margin-bottom: 22px;
+            text-align: center;
+            gap: 16px;
+            backdrop-filter: blur(10px);
+            transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+            position: relative;
             overflow: hidden;
+        }
+
+        /* Card 1: Object Run (Cyan) */
+        .card-obstacle {
+            border-color: #00f0ff88;
+            box-shadow: 0 0 25px rgba(0, 240, 255, 0.15);
+        }
+        .card-obstacle:hover {
+            transform: translateY(-8px);
+            border-color: #00f0ff;
+            box-shadow: 0 12px 35px rgba(0, 240, 255, 0.35);
+        }
+        .card-obstacle .game-icon {
+            color: #00f0ff;
+            filter: drop-shadow(0 0 10px #00f0ff);
+        }
+        .card-obstacle .play-btn {
+            border-color: #00f0ff;
+            color: #00f0ff;
+        }
+        .card-obstacle:hover .play-btn {
+            background: #00f0ff;
+            color: #000;
+            box-shadow: 0 0 20px #00f0ff;
+        }
+
+        /* Card 2: Reflex Test (Magenta) */
+        .card-reflex {
+            border-color: #ff00ea88;
+            box-shadow: 0 0 25px rgba(255, 0, 234, 0.15);
+        }
+        .card-reflex:hover {
+            transform: translateY(-8px);
+            border-color: #ff00ea;
+            box-shadow: 0 12px 35px rgba(255, 0, 234, 0.35);
+        }
+        .card-reflex .game-icon {
+            color: #ff00ea;
+            filter: drop-shadow(0 0 10px #ff00ea);
+        }
+        .card-reflex .play-btn {
+            border-color: #ff00ea;
+            color: #ff00ea;
+        }
+        .card-reflex:hover .play-btn {
+            background: #ff00ea;
+            color: #000;
+            box-shadow: 0 0 20px #ff00ea;
+        }
+
+        /* Card 3: 3D Boss Rush (Molten Orange/Red) */
+        .card-bossrush {
+            border-color: #ff330088;
+            box-shadow: 0 0 25px rgba(255, 51, 0, 0.15);
+        }
+        .card-bossrush:hover {
+            transform: translateY(-8px);
+            border-color: #ff5500;
+            box-shadow: 0 12px 35px rgba(255, 85, 0, 0.35);
+        }
+        .card-bossrush .game-icon {
+            color: #ff3300;
+            filter: drop-shadow(0 0 10px #ff3300);
+        }
+        .card-bossrush .play-btn {
+            border-color: #ff5500;
+            color: #ff5500;
+        }
+        .card-bossrush:hover .play-btn {
+            background: #ff5500;
+            color: #000;
+            box-shadow: 0 0 20px #ff5500;
+        }
+
+        .game-icon {
+            width: 70px;
+            height: 70px;
             display: flex;
             align-items: center;
             justify-content: center;
-            position: relative;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .game-icon svg {
+            width: 100%;
+            height: 100%;
         }
 
         .game-title {
-            font-size: 1.75rem;
-            font-weight: 900;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #ffffff;
             letter-spacing: 1.5px;
-            margin-bottom: 8px;
-        }
-        .title-cyan {
-            color: #ffffff;
-            text-shadow: 0 0 12px rgba(0, 240, 255, 0.6);
-        }
-        .title-pink {
-            color: #ffffff;
-            text-shadow: 0 0 12px rgba(255, 0, 234, 0.6);
         }
 
         .game-desc {
-            font-size: 13px;
-            color: #94a3b8;
-            line-height: 1.6;
-            margin-bottom: 24px;
-            min-height: 42px;
+            font-size: 1.05rem;
+            color: #b5c2d9;
+            line-height: 1.5;
+            min-height: 48px;
         }
 
-        /* Live Stat Showcase */
-        .stats-tray {
-            background: rgba(4, 6, 16, 0.7);
-            border-radius: 10px;
-            padding: 12px 16px;
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
-            margin-bottom: 24px;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-        }
-
-        .stat-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 2px;
-        }
-
-        .stat-name {
-            font-size: 10px;
-            letter-spacing: 1px;
-            color: #64748b;
-            text-transform: uppercase;
+        .play-btn {
+            margin-top: 8px;
+            padding: 10px 28px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.95rem;
             font-weight: 700;
-        }
-
-        .stat-num {
-            font-size: 17px;
-            font-weight: 900;
-            letter-spacing: 1px;
-        }
-        .stat-cyan { color: var(--cyan); text-shadow: 0 0 8px rgba(0, 240, 255, 0.5); }
-        .stat-pink { color: var(--pink); text-shadow: 0 0 8px rgba(255, 0, 234, 0.5); }
-
-        /* Launch Buttons */
-        .launch-btn {
-            display: block;
-            width: 100%;
-            padding: 14px 20px;
-            border-radius: 10px;
-            font-size: 13px;
-            font-weight: 900;
             letter-spacing: 2px;
-            text-align: center;
-            text-decoration: none;
+            background: transparent;
+            border: 2px solid;
+            border-radius: 8px;
+            transition: 0.2s ease;
             text-transform: uppercase;
-            transition: all 0.25s ease;
-            position: relative;
-            overflow: hidden;
         }
 
-        .btn-cyan {
-            background: linear-gradient(90deg, #00c8db, #00f0ff);
-            color: #020914;
-            box-shadow: 0 0 20px rgba(0, 240, 255, 0.4);
-        }
-        .btn-cyan:hover {
-            background: #00f0ff;
-            box-shadow: 0 0 35px rgba(0, 240, 255, 0.75);
-            transform: scale(1.02);
-            color: #000;
-        }
-
-        .btn-pink {
-            background: linear-gradient(90deg, #db00c9, #ff00ea);
-            color: #ffffff;
-            box-shadow: 0 0 20px rgba(255, 0, 234, 0.4);
-        }
-        .btn-pink:hover {
-            background: #ff00ea;
-            box-shadow: 0 0 35px rgba(255, 0, 234, 0.75);
-            transform: scale(1.02);
-            color: #fff;
-        }
-
-        /* Footer */
         footer {
-            position: relative;
-            z-index: 10;
-            padding: 20px;
-            text-align: center;
-            border-top: 1px solid rgba(255, 255, 255, 0.08);
-            background: rgba(2, 3, 8, 0.8);
-            font-size: 11px;
+            margin-top: 10px;
+            font-size: 0.85rem;
+            color: #5d677d;
             letter-spacing: 1px;
-            color: #64748b;
-        }
-        footer span {
-            color: var(--cyan);
-            font-weight: 700;
+            text-transform: uppercase;
         }
     </style>
 </head>
 <body>
 
-    <div class="grid-backdrop"></div>
-    <canvas id="bgCanvas"></canvas>
+    <div class="grid-bg"></div>
+    <div class="ambient-glow glow-1"></div>
+    <div class="ambient-glow glow-2"></div>
+    <div class="ambient-glow glow-3"></div>
 
-    <header>
-        <div class="badge-pill orbitron">
-            <span class="status-dot"></span>
-            PERSONAL ARCADE
+    <div class="container">
+        <header>
+            <h1>ARCADE HUB 🕹️</h1>
+            <p>Select a Game to Launch</p>
+        </header>
+
+        <div class="games-grid">
+            <!-- OBJECT RUN -->
+            <a href="obstacle.html" class="game-card card-obstacle">
+                <div class="game-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                        <path d="M9 17l6-5-6-5v10z" fill="currentColor"></path>
+                    </svg>
+                </div>
+                <div class="game-title">OBJECT RUN 🏃</div>
+                <div class="game-desc">Rhythm platforming, custom maps, spike hazard pits, and high-velocity cube runs.</div>
+                <span class="play-btn">Play Now</span>
+            </a>
+
+            <!-- REFLEX TEST -->
+            <a href="reflex-test.html" class="game-card card-reflex">
+                <div class="game-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                    </svg>
+                </div>
+                <div class="game-title">REFLEX TEST ⚡</div>
+                <div class="game-desc">High-speed 3x3 reaction grid. Train precision, sustain streaks, and log reaction times.</div>
+                <span class="play-btn">Play Now</span>
+            </a>
+
+            <!-- 3D BOSS RUSH -->
+            <a href="boss-rush.html" class="game-card card-bossrush">
+                <div class="game-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="9"></circle>
+                        <line x1="12" y1="1" x2="12" y2="5"></line>
+                        <line x1="12" y1="19" x2="12" y2="23"></line>
+                        <line x1="1" y1="12" x2="5" y2="12"></line>
+                        <line x1="19" y1="12" x2="23" y2="12"></line>
+                        <circle cx="12" cy="12" r="3" fill="currentColor"></circle>
+                    </svg>
+                </div>
+                <div class="game-title">3D BOSS RUSH ⚔️</div>
+                <div class="game-desc">Third-person Three.js arena shooter. Dodge projectile rings and take down titans.</div>
+                <span class="play-btn">Play Now</span>
+            </a>
         </div>
-        <h1 class="orbitron">ARCADE HUB ⚡</h1>
-        <p class="subtitle orbitron">SELECT A SYSTEM • 60 FPS BROWSER PLATFORM</p>
-    </header>
 
-    <main>
-        <div class="cards-grid">
-            <!-- GAME 1: OBJECT RUN -->
-            <article class="game-card card-cyan">
-                <div>
-                    <div class="card-top">
-                        <span class="tag tag-cyan orbitron">RHYTHM RUNNER</span>
-                        <span class="mode-label orbitron">3 MAPS ACTIVE</span>
-                    </div>
+        <footer>Personal Web Arcade Collection</footer>
+    </div>
 
-                    <!-- Custom Animated Vector Graphics Preview -->
-                    <div class="preview-box">
-                        <svg width="100%" height="100%" viewBox="0 0 320 160" fill="none">
-                            <!-- Background cavern gradient -->
-                            <rect width="320" height="160" fill="#060919"/>
-                            <line x1="0" y1="130" x2="320" y2="130" stroke="#00f0ff" stroke-width="2.5"/>
-                            
-                            <!-- Neon Floor Grid -->
-                            <path d="M0,130 L320,130 M0,140 L320,140 M0,150 L320,150" stroke="rgba(0,240,255,0.2)" stroke-width="1"/>
-                            <line x1="40" y1="130" x2="20" y2="160" stroke="rgba(0,240,255,0.2)"/>
-                            <line x1="100" y1="130" x2="90" y2="160" stroke="rgba(0,240,255,0.2)"/>
-                            <line x1="160" y1="130" x2="160" y2="160" stroke="rgba(0,240,255,0.2)"/>
-                            <line x1="220" y1="130" x2="230" y2="160" stroke="rgba(0,240,255,0.2)"/>
-                            <line x1="280" y1="130" x2="300" y2="160" stroke="rgba(0,240,255,0.2)"/>
-
-                            <!-- Trailing particles -->
-                            <circle cx="55" cy="100" r="3" fill="rgba(0,240,255,0.35)"/>
-                            <circle cx="70" cy="94" r="4.5" fill="rgba(0,240,255,0.6)"/>
-                            <circle cx="88" cy="85" r="5.5" fill="rgba(0,240,255,0.85)"/>
-
-                            <!-- Jumping Cube with Glow -->
-                            <g transform="rotate(22 110 75)">
-                                <rect x="95" y="60" width="30" height="30" fill="#00f0ff" stroke="#ffffff" stroke-width="2" rx="3"/>
-                                <rect x="103" y="68" width="14" height="14" fill="#ffffff" rx="2"/>
-                            </g>
-
-                            <!-- Hazards: Spikes -->
-                            <polygon points="175,130 187,100 199,130" fill="#ff00ea" stroke="#ffffff" stroke-width="1"/>
-                            <polygon points="201,130 213,100 225,130" fill="#ff00ea" stroke="#ffffff" stroke-width="1"/>
-
-                            <!-- Suspended Platform -->
-                            <rect x="245" y="85" width="55" height="12" rx="3" fill="#0b1730" stroke="#00f0ff" stroke-width="2"/>
-                            <rect x="248" y="88" width="49" height="2" fill="#ffffff"/>
-                        </svg>
-                    </div>
-
-                    <h2 class="game-title title-cyan orbitron">OBJECT RUN 🏃</h2>
-                    <p class="game-desc">
-                        Rhythm-based cyber platformer with constant speed, gravity physics, tight spike timing, and dimensional portals featuring rocket ship flight.
-                    </p>
-                </div>
-
-                <div>
-                    <!-- LocalStorage Stat Snapshots -->
-                    <div class="stats-tray">
-                        <div class="stat-item">
-                            <span class="stat-name orbitron">MAP 1 BEST</span>
-                            <span id="stat-m1" class="stat-num stat-cyan orbitron">0%</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-name orbitron">MAP 2 BEST</span>
-                            <span id="stat-m2" class="stat-num stat-cyan orbitron">0%</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-name orbitron">MAP 3 BEST</span>
-                            <span id="stat-m3" class="stat-num stat-cyan orbitron">0%</span>
-                        </div>
-                    </div>
-
-                    <a href="obstacle.html" class="launch-btn btn-cyan orbitron">
-                        SELECT MAP & PLAY ▶
-                    </a>
-                </div>
-            </article>
-
-            <!-- GAME 2: REFLEX TEST -->
-            <article class="game-card card-pink">
-                <div>
-                    <div class="card-top">
-                        <span class="tag tag-pink orbitron">REACTION TRAINER</span>
-                        <span class="mode-label orbitron">3×3 MATRIX</span>
-                    </div>
-
-                    <!-- Custom Animated Vector Graphics Preview -->
-                    <div class="preview-box">
-                        <svg width="100%" height="100%" viewBox="0 0 320 160" fill="none">
-                            <rect width="320" height="160" fill="#14061a"/>
-                            
-                            <!-- Mini 3x3 Matrix Grid -->
-                            <g transform="translate(45, 30)">
-                                <!-- Row 1 -->
-                                <rect x="0" y="0" width="28" height="28" rx="4" fill="#24072f" stroke="#ff00ea" stroke-width="1.5"/>
-                                <rect x="34" y="0" width="28" height="28" rx="4" fill="#24072f" stroke="#ff00ea" stroke-width="1.5"/>
-                                <rect x="68" y="0" width="28" height="28" rx="4" fill="#24072f" stroke="#ff00ea" stroke-width="1.5"/>
-                                <!-- Row 2 (Center Active Target) -->
-                                <rect x="0" y="34" width="28" height="28" rx="4" fill="#24072f" stroke="#ff00ea" stroke-width="1.5"/>
-                                <rect x="34" y="34" width="28" height="28" rx="4" fill="#00f0ff" stroke="#ffffff" stroke-width="2.5"/>
-                                <rect x="42" y="42" width="12" height="12" rx="2" fill="#ffffff"/>
-                                <rect x="68" y="34" width="28" height="28" rx="4" fill="#24072f" stroke="#ff00ea" stroke-width="1.5"/>
-                                <!-- Row 3 -->
-                                <rect x="0" y="68" width="28" height="28" rx="4" fill="#24072f" stroke="#ff00ea" stroke-width="1.5"/>
-                                <rect x="34" y="68" width="28" height="28" rx="4" fill="#24072f" stroke="#ff00ea" stroke-width="1.5"/>
-                                <rect x="68" y="68" width="28" height="28" rx="4" fill="#24072f" stroke="#ff00ea" stroke-width="1.5"/>
-                            </g>
-
-                            <!-- Stopwatch / Speed Gauge Visual -->
-                            <circle cx="225" cy="80" r="38" stroke="#ff00ea" stroke-width="3" fill="#200626"/>
-                            <circle cx="225" cy="80" r="34" stroke="rgba(255,0,234,0.3)" stroke-width="1"/>
-                            <line x1="225" y1="80" x2="242" y2="65" stroke="#00f0ff" stroke-width="3" stroke-linecap="round"/>
-                            <circle cx="225" cy="80" r="4" fill="#ffffff"/>
-                            <text x="225" y="132" fill="#ff00ea" font-family="Orbitron" font-size="13" font-weight="900" text-anchor="middle">SPEED TEST</text>
-                        </svg>
-                    </div>
-
-                    <h2 class="game-title title-pink orbitron">REFLEX TEST ⚡</h2>
-                    <p class="game-desc">
-                        Speed grid trainer testing hand-eye reaction in milliseconds. Track streak combos, live averages, and fight against your fastest personal benchmark.
-                    </p>
-                </div>
-
-                <div>
-                    <!-- LocalStorage Stat Snapshots -->
-                    <div class="stats-tray">
-                        <div class="stat-item">
-                            <span class="stat-name orbitron">BEST SPEED</span>
-                            <span id="stat-reflex-best" class="stat-num stat-pink orbitron">-- ms</span>
-                        </div>
-                        <div class="stat-item">
-                            <span class="stat-name orbitron">TOP STREAK</span>
-                            <span id="stat-reflex-streak" class="stat-num stat-pink orbitron">0</span>
-                        </div>
-                    </div>
-
-                    <a href="reflex-test.html" class="launch-btn btn-pink orbitron">
-                        ENTER TRAINER ▶
-                    </a>
-                </div>
-            </article>
-        </div>
-    </main>
-
-    <footer>
-        <p class="orbitron">NEON ARCADE • BUILT WITH <span>VANILLA JS</span> & HARDWARE ACCELERATION</p>
-    </footer>
-
-    <script>
-        // 1. Synchronize Stats from LocalStorage
-        function syncTelemetry() {
-            // Object Run Maps
-            const m1 = localStorage.getItem('objectRunMap1Best') || localStorage.getItem('objectRunBest') || '0';
-            const m2 = localStorage.getItem('objectRunMap2Best') || '0';
-            const m3 = localStorage.getItem('objectRunMap3Best') || '0';
-            
-            document.getElementById('stat-m1').innerText = `${m1}%`;
-            document.getElementById('stat-m2').innerText = `${m2}%`;
-            document.getElementById('stat-m3').innerText = `${m3}%`;
-
-            // Reflex Test
-            const reflexBest = localStorage.getItem('reflexTestBestTime');
-            const reflexStreak = localStorage.getItem('reflexTestBestStreak') || localStorage.getItem('reflexStreak') || '0';
-            
-            if (reflexBest) {
-                document.getElementById('stat-reflex-best').innerText = `${reflexBest} ms`;
-            } else {
-                document.getElementById('stat-reflex-best').innerText = `-- ms`;
-            }
-            document.getElementById('stat-reflex-streak').innerText = reflexStreak;
-        }
-        syncTelemetry();
-
-        // 2. Animated Ambient Background Canvas (Floating Cyber Diamonds & Squares)
-        const canvas = document.getElementById('bgCanvas');
-        const ctx = canvas.getContext('2d');
-
-        let width = canvas.width = window.innerWidth;
-        let height = canvas.height = window.innerHeight;
-
-        window.addEventListener('resize', () => {
-            width = canvas.width = window.innerWidth;
-            height = canvas.height = window.innerHeight;
-        });
-
-        const shapes = [];
-        const SHAPE_COUNT = 28;
-
-        for (let i = 0; i < SHAPE_COUNT; i++) {
-            shapes.push({
-                x: Math.random() * width,
-                y: Math.random() * height,
-                size: Math.random() * 22 + 8,
-                vx: (Math.random() - 0.5) * 0.4,
-                vy: -Math.random() * 0.4 - 0.1,
-                rot: Math.random() * Math.PI,
-                rotSpeed: (Math.random() - 0.5) * 0.015,
-                color: i % 2 === 0 ? 'rgba(0, 240, 255, ' : 'rgba(255, 0, 234, ',
-                alpha: Math.random() * 0.25 + 0.08,
-                type: i % 3 === 0 ? 'diamond' : 'square'
-            });
-        }
-
-        function renderBackground() {
-            ctx.clearRect(0, 0, width, height);
-
-            for (let s of shapes) {
-                s.x += s.vx;
-                s.y += s.vy;
-                s.rot += s.rotSpeed;
-
-                if (s.y < -50) s.y = height + 50;
-                if (s.x < -50) s.x = width + 50;
-                if (s.x > width + 50) s.x = -50;
-
-                ctx.save();
-                ctx.translate(s.x, s.y);
-                ctx.rotate(s.rot);
-                ctx.strokeStyle = `${s.color}${s.alpha})`;
-                ctx.lineWidth = 1.5;
-
-                if (s.type === 'diamond') {
-                    ctx.beginPath();
-                    ctx.moveTo(0, -s.size / 2);
-                    ctx.lineTo(s.size / 2, 0);
-                    ctx.lineTo(0, s.size / 2);
-                    ctx.lineTo(-s.size / 2, 0);
-                    ctx.closePath();
-                    ctx.stroke();
-                } else {
-                    ctx.strokeRect(-s.size / 2, -s.size / 2, s.size, s.size);
-                }
-                ctx.restore();
-            }
-
-            requestAnimationFrame(renderBackground);
-        }
-        renderBackground();
-    </script>
 </body>
 </html>
