@@ -14,7 +14,7 @@
         }
 
         body {
-            background: radial-gradient(circle at top center, #100a26 0%, #060410 70%, #020106 100%);
+            background: radial-gradient(circle at top center, #140b22 0%, #060410 65%, #020106 100%);
             color: #ffffff;
             font-family: 'Rajdhani', sans-serif;
             min-height: 100vh;
@@ -27,6 +27,7 @@
             padding: 40px 20px;
         }
 
+        /* Sci-Fi Grid Overlay */
         .grid-bg {
             position: fixed;
             top: 0;
@@ -41,6 +42,7 @@
             z-index: 0;
         }
 
+        /* Ambient Lighting Blobs */
         .ambient-glow {
             position: fixed;
             width: 500px;
@@ -49,16 +51,16 @@
             filter: blur(140px);
             pointer-events: none;
             z-index: 0;
-            opacity: 0.25;
+            opacity: 0.22;
         }
         .glow-1 { top: -100px; left: 10%; background: #00f0ff; }
         .glow-2 { bottom: -100px; right: 10%; background: #ff00ea; }
-        .glow-3 { top: 40%; left: 40%; background: #ff3300; opacity: 0.18; }
+        .glow-3 { top: 45%; left: 45%; background: #ff4500; opacity: 0.25; }
 
         .container {
             position: relative;
             z-index: 1;
-            max-width: 1100px;
+            max-width: 1120px;
             width: 100%;
             display: flex;
             flex-direction: column;
@@ -77,7 +79,7 @@
             letter-spacing: 4px;
             text-transform: uppercase;
             color: #ffffff;
-            text-shadow: 0 0 20px rgba(0, 240, 255, 0.6), 0 0 40px rgba(255, 0, 234, 0.3);
+            text-shadow: 0 0 20px rgba(0, 240, 255, 0.6), 0 0 40px rgba(255, 69, 0, 0.4);
             margin-bottom: 8px;
         }
 
@@ -90,8 +92,8 @@
 
         .games-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 26px;
+            grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+            gap: 28px;
             width: 100%;
         }
 
@@ -99,7 +101,7 @@
             background: rgba(13, 10, 29, 0.7);
             border: 2px solid;
             border-radius: 16px;
-            padding: 30px 24px;
+            padding: 32px 24px;
             text-decoration: none;
             display: flex;
             flex-direction: column;
@@ -112,7 +114,7 @@
             overflow: hidden;
         }
 
-        /* Card 1: Object Run (Cyan) */
+        /* 1. OBJECT RUN (Cyan Neon) */
         .card-obstacle {
             border-color: #00f0ff88;
             box-shadow: 0 0 25px rgba(0, 240, 255, 0.15);
@@ -120,7 +122,7 @@
         .card-obstacle:hover {
             transform: translateY(-8px);
             border-color: #00f0ff;
-            box-shadow: 0 12px 35px rgba(0, 240, 255, 0.35);
+            box-shadow: 0 12px 35px rgba(0, 240, 255, 0.4);
         }
         .card-obstacle .game-icon {
             color: #00f0ff;
@@ -136,7 +138,7 @@
             box-shadow: 0 0 20px #00f0ff;
         }
 
-        /* Card 2: Reflex Test (Magenta) */
+        /* 2. REFLEX TEST (Magenta Glow) */
         .card-reflex {
             border-color: #ff00ea88;
             box-shadow: 0 0 25px rgba(255, 0, 234, 0.15);
@@ -144,7 +146,7 @@
         .card-reflex:hover {
             transform: translateY(-8px);
             border-color: #ff00ea;
-            box-shadow: 0 12px 35px rgba(255, 0, 234, 0.35);
+            box-shadow: 0 12px 35px rgba(255, 0, 234, 0.4);
         }
         .card-reflex .game-icon {
             color: #ff00ea;
@@ -160,33 +162,47 @@
             box-shadow: 0 0 20px #ff00ea;
         }
 
-        /* Card 3: SHOOTOUT⚔️ (Molten Orange/Red) */
-        .card-SHOOTOUT⚔️ {
-            border-color: #ff330088;
-            box-shadow: 0 0 25px rgba(255, 51, 0, 0.15);
+        /* 3. 3D SHOOTOUT / BOSS RUSH (MOLTEN LAVA THEME 🌋) */
+        .card-shootout {
+            background: radial-gradient(circle at center, rgba(38, 12, 5, 0.85) 0%, rgba(16, 6, 4, 0.95) 100%);
+            border-color: #ff5500aa;
+            box-shadow: 0 0 30px rgba(255, 69, 0, 0.25), inset 0 0 20px rgba(255, 69, 0, 0.1);
         }
-        .card-SHOOTOUT⚔️:hover {
+        .card-shootout:hover {
             transform: translateY(-8px);
-            border-color: #ff5500;
-            box-shadow: 0 12px 35px rgba(255, 85, 0, 0.35);
+            border-color: #ff7700;
+            box-shadow: 0 14px 45px rgba(255, 85, 0, 0.55), inset 0 0 25px rgba(255, 85, 0, 0.25);
         }
-        .card-SHOOTOUT⚔️ .game-icon {
+        .card-shootout .game-icon {
             color: #ff3300;
-            filter: drop-shadow(0 0 10px #ff3300);
+            filter: drop-shadow(0 0 12px #ff4500) drop-shadow(0 0 24px #ff1100);
+            animation: magmaPulse 2.4s infinite alternate ease-in-out;
         }
-        .card-SHOOTOUT⚔️ .play-btn {
+        .card-shootout .game-title {
+            color: #ffaa44;
+            text-shadow: 0 0 12px #ff4500;
+        }
+        .card-shootout .play-btn {
             border-color: #ff5500;
-            color: #ff5500;
+            color: #ff9933;
+            background: rgba(255, 69, 0, 0.08);
+            text-shadow: 0 0 6px #ff3300;
         }
-        .card-SHOOTOUT⚔️:hover .play-btn {
-            background: #ff5500;
+        .card-shootout:hover .play-btn {
+            background: linear-gradient(90deg, #ff3300, #ff8800);
+            border-color: #ffaa00;
             color: #000;
-            box-shadow: 0 0 20px #ff5500;
+            box-shadow: 0 0 25px #ff5500;
+        }
+
+        @keyframes magmaPulse {
+            0% { transform: scale(1); filter: drop-shadow(0 0 8px #ff3300); }
+            100% { transform: scale(1.06); filter: drop-shadow(0 0 18px #ff6600) drop-shadow(0 0 28px #ff0000); }
         }
 
         .game-icon {
-            width: 70px;
-            height: 70px;
+            width: 72px;
+            height: 72px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -199,9 +215,8 @@
 
         .game-title {
             font-family: 'Orbitron', sans-serif;
-            font-size: 1.5rem;
+            font-size: 1.55rem;
             font-weight: 700;
-            color: #ffffff;
             letter-spacing: 1.5px;
         }
 
@@ -209,7 +224,7 @@
             font-size: 1.05rem;
             color: #b5c2d9;
             line-height: 1.5;
-            min-height: 48px;
+            min-height: 50px;
         }
 
         .play-btn {
@@ -219,18 +234,17 @@
             font-size: 0.95rem;
             font-weight: 700;
             letter-spacing: 2px;
-            background: transparent;
             border: 2px solid;
             border-radius: 8px;
-            transition: 0.2s ease;
+            transition: 0.25s ease;
             text-transform: uppercase;
         }
 
         footer {
-            margin-top: 10px;
+            margin-top: 15px;
             font-size: 0.85rem;
             color: #5d677d;
-            letter-spacing: 1px;
+            letter-spacing: 1.5px;
             text-transform: uppercase;
         }
     </style>
@@ -249,7 +263,7 @@
         </header>
 
         <div class="games-grid">
-            <!-- OBJECT RUN -->
+            <!-- 1. OBJECT RUN -->
             <a href="obstacle.html" class="game-card card-obstacle">
                 <div class="game-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -262,7 +276,7 @@
                 <span class="play-btn">Play Now</span>
             </a>
 
-            <!-- REFLEX TEST -->
+            <!-- 2. REFLEX TEST -->
             <a href="reflex-test.html" class="game-card card-reflex">
                 <div class="game-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -274,21 +288,29 @@
                 <span class="play-btn">Play Now</span>
             </a>
 
-            <!-- SHOOTOUT⚔️ -->
-           <a href="shootout.html" class="game-card card-SHOOTOUT⚔️">
+            <!-- 3. 3D SHOOTOUT (MOLTEN LAVA THEMED) -->
+            <a href="boss-rush.html" class="game-card card-shootout">
                 <div class="game-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="9"></circle>
-                        <line x1="12" y1="1" x2="12" y2="5"></line>
-                        <line x1="12" y1="19" x2="12" y2="23"></line>
-                        <line x1="1" y1="12" x2="5" y2="12"></line>
-                        <line x1="19" y1="12" x2="23" y2="12"></line>
-                        <circle cx="12" cy="12" r="3" fill="currentColor"></circle>
+                        <!-- Crosshair target with molten core flare -->
+                        <circle cx="12" cy="12" r="9" stroke="url(#lavaGrad)" stroke-width="2.2"></circle>
+                        <line x1="12" y1="1" x2="12" y2="5" stroke="#ffaa00" stroke-width="2.5"></line>
+                        <line x1="12" y1="19" x2="12" y2="23" stroke="#ffaa00" stroke-width="2.5"></line>
+                        <line x1="1" y1="12" x2="5" y2="12" stroke="#ffaa00" stroke-width="2.5"></line>
+                        <line x1="19" y1="12" x2="23" y2="12" stroke="#ffaa00" stroke-width="2.5"></line>
+                        <circle cx="12" cy="12" r="3.2" fill="#ffdd00" stroke="#ff3300" stroke-width="1.5"></circle>
+                        <defs>
+                            <linearGradient id="lavaGrad" x1="0" y1="0" x2="1" y2="1">
+                                <stop offset="0%" stop-color="#ff1100"/>
+                                <stop offset="50%" stop-color="#ff5500"/>
+                                <stop offset="100%" stop-color="#ffaa00"/>
+                            </linearGradient>
+                        </defs>
                     </svg>
                 </div>
-                <div class="game-title">SHOOTOUT ⚔️</div>
-                <div class="game-desc">Third-person Three.js arena shooter. Dodge projectile rings and take down titans.</div>
-                <span class="play-btn">Play Now</span>
+                <div class="game-title">3D SHOOTOUT 🌋</div>
+                <div class="game-desc">Third-person rectangular arena mech combat. Leap over plasma rings and vanquish titans.</div>
+                <span class="play-btn">Battle Now</span>
             </a>
         </div>
 
