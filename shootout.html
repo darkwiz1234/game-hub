@@ -2,18 +2,18 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
 <title>SHOOTOUT ⚔️</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Rajdhani:wght@600;700&display=swap');
   * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
-  body { background: #030206; overflow: hidden; font-family: 'Rajdhani', sans-serif; color: #fff; }
+  body { background: #1a2035; overflow: hidden; font-family: 'Rajdhani', sans-serif; color: #fff; }
   canvas { display: block; width: 100vw; height: 100vh; }
 
   /* Top HUD */
   #hud {
-    position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
-    width: 90%; max-width: 640px; display: flex; flex-direction: column; gap: 7px;
+    position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+    width: 92%; max-width: 650px; display: flex; flex-direction: column; gap: 6px;
     pointer-events: none; z-index: 10;
   }
   #title-bar {
@@ -21,96 +21,89 @@
     font-family: 'Orbitron', sans-serif;
   }
   #game-title {
-    font-size: 16px; font-weight: 900; letter-spacing: 2px;
-    color: #ff5500; text-shadow: 0 0 12px #ff3300;
+    font-size: 17px; font-weight: 900; letter-spacing: 2px;
+    color: #ffdd00; text-shadow: 0 0 10px #ff3300, 2px 2px 0 #000;
   }
   #stage-indicator {
     font-size: 11px; font-weight: 700; color: #00f0ff; letter-spacing: 1px;
-    text-shadow: 0 0 8px #00f0ff;
+    text-shadow: 0 0 8px rgba(0,240,255,0.8), 1px 1px 0 #000;
   }
   #stats-panel {
     display: flex; gap: 14px; font-family: 'Orbitron', sans-serif; font-size: 12px;
     letter-spacing: 1px; text-shadow: 0 0 8px #ffaa00;
   }
   .bar-container {
-    background: rgba(14, 8, 5, 0.85); border: 2px solid rgba(255, 100, 0, 0.4);
-    border-radius: 8px; height: 18px; position: relative; overflow: hidden;
-    backdrop-filter: blur(6px);
+    background: rgba(10, 15, 30, 0.7); border: 2px solid rgba(255, 255, 255, 0.6);
+    border-radius: 9px; height: 18px; position: relative; overflow: hidden;
+    backdrop-filter: blur(8px); box-shadow: 0 4px 12px rgba(0,0,0,0.3);
   }
-  .bar-fill { height: 100%; width: 100%; transition: width 0.12s linear; }
-  #hp-player-bar { background: linear-gradient(90deg, #00ffaa, #00f0ff); box-shadow: 0 0 12px #00ffaa; }
-  #hp-boss-bar { background: linear-gradient(90deg, #ff0055, #ffaa00); box-shadow: 0 0 12px #ff0055; }
+  .bar-fill { height: 100%; width: 100%; transition: width 0.12s ease-out; }
+  #hp-player-bar { background: linear-gradient(90deg, #00ff88, #00f0ff); box-shadow: 0 0 12px #00ffaa; }
+  #hp-boss-bar { background: linear-gradient(90deg, #ff0055, #ff9900); box-shadow: 0 0 12px #ff0055; }
   .bar-label {
     position: absolute; inset: 0; font-family: 'Orbitron', sans-serif;
     font-size: 10px; font-weight: 900; letter-spacing: 1.5px;
     display: flex; align-items: center; justify-content: center;
-    text-shadow: 0 0 6px #000;
+    color: #fff; text-shadow: 1px 1px 3px #000;
   }
 
   /* Center Crosshair */
   #reticle {
     position: absolute; top: 50%; left: 50%; width: 22px; height: 22px;
-    transform: translate(-50%, -50%); border: 2px solid rgba(255, 85, 0, 0.7);
+    transform: translate(-50%, -50%); border: 2px solid rgba(255, 255, 255, 0.7);
     border-radius: 50%; pointer-events: none; z-index: 5;
+    box-shadow: 0 0 8px rgba(0,240,255,0.6);
   }
   #reticle::after {
     content: ''; position: absolute; top: 50%; left: 50%; width: 4px; height: 4px;
-    background: #ff5500; transform: translate(-50%, -50%); border-radius: 50%;
+    background: #00f0ff; transform: translate(-50%, -50%); border-radius: 50%;
   }
 
-  /* Toast for Pickups & Stage Transitions */
+  /* Toast Notification */
   #game-toast {
-    position: absolute; top: 115px; left: 50%; transform: translateX(-50%);
+    position: absolute; top: 110px; left: 50%; transform: translateX(-50%);
     font-family: 'Orbitron', sans-serif; font-size: 13px; font-weight: 900;
-    color: #00ffaa; text-shadow: 0 0 10px #00ffaa; background: rgba(0, 30, 20, 0.85);
-    padding: 7px 18px; border-radius: 20px; border: 1px solid #00ffaa;
+    color: #ffdd00; text-shadow: 0 0 10px #ffaa00; background: rgba(10, 15, 30, 0.85);
+    padding: 7px 20px; border-radius: 20px; border: 2px solid #ffdd00;
     opacity: 0; transition: opacity 0.3s ease; pointer-events: none; z-index: 12;
   }
 
-  /* Mobile Controls */
+  /* Unified Mobile Touchpad (Single Joystick) */
   #mobile-ui { display: none; position: absolute; inset: 0; pointer-events: none; z-index: 20; }
-  .touch-btn {
-    pointer-events: auto; position: absolute; border-radius: 50%;
-    font-family: 'Orbitron', sans-serif; font-weight: 900; font-size: 13px;
-    display: flex; align-items: center; justify-content: center;
-    border: 2px solid rgba(255,255,255,0.4); backdrop-filter: blur(8px);
-    touch-action: none;
+  #single-touchpad {
+    position: absolute; bottom: 25px; left: 50%; transform: translateX(-50%);
+    width: 170px; height: 170px; border-radius: 50%;
+    border: 3px solid rgba(255, 221, 0, 0.6); background: radial-gradient(circle, rgba(0,240,255,0.18) 0%, rgba(10,20,40,0.55) 70%);
+    box-shadow: 0 0 25px rgba(0, 240, 255, 0.35); pointer-events: auto; touch-action: none;
   }
-  #btn-shoot {
-    left: 28px; bottom: 35px; width: 80px; height: 80px;
-    background: rgba(255, 69, 0, 0.3); border-color: #ff5500; color: #ffaa55;
-    box-shadow: 0 0 20px rgba(255, 85, 0, 0.45);
-  }
-  #btn-jump {
-    right: 48px; bottom: 165px; width: 58px; height: 58px;
-    background: rgba(0, 255, 170, 0.25); border-color: #00ffaa; color: #a6ffd8;
-    box-shadow: 0 0 15px rgba(0, 255, 170, 0.35);
-  }
-  #joystick-zone {
-    right: 25px; bottom: 25px; width: 125px; height: 125px; position: absolute;
-    border-radius: 50%; border: 2px dashed rgba(255, 85, 0, 0.4);
-    background: rgba(18, 8, 4, 0.45); pointer-events: auto; touch-action: none;
-  }
-  #joystick-thumb {
-    width: 48px; height: 48px; border-radius: 50%; background: #ff5500;
+  #touchpad-knob {
+    width: 62px; height: 62px; border-radius: 50%;
+    background: radial-gradient(circle, #ffea00 0%, #ff5500 100%);
     position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-    box-shadow: 0 0 14px #ff5500; pointer-events: none;
+    box-shadow: 0 0 16px #ffaa00; pointer-events: none;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Orbitron', sans-serif; font-size: 10px; font-weight: 900; color: #000;
+  }
+  #touchpad-guide {
+    position: absolute; bottom: -20px; width: 220px; left: 50%; transform: translateX(-50%);
+    font-family: 'Orbitron', sans-serif; font-size: 9px; text-align: center;
+    color: rgba(255,255,255,0.85); text-shadow: 0 1px 3px #000; pointer-events: none;
   }
 
-  /* Screen Damage / Fade Overlay */
+  /* Screen Overlays */
   #screen-flash {
-    position: absolute; inset: 0; pointer-events: none; background: rgba(255, 0, 50, 0.35);
+    position: absolute; inset: 0; pointer-events: none; background: rgba(255, 0, 50, 0.4);
     opacity: 0; transition: opacity 0.08s ease; z-index: 15;
   }
   #stage-fade {
-    position: absolute; inset: 0; pointer-events: none; background: #000;
+    position: absolute; inset: 0; pointer-events: none; background: #0b1020;
     opacity: 0; transition: opacity 0.45s ease; z-index: 25;
   }
 
   #desktop-legend {
     position: absolute; bottom: 12px; left: 16px; font-size: 11px;
-    color: rgba(255, 255, 255, 0.5); letter-spacing: 1px; pointer-events: none;
-    font-family: 'Orbitron', sans-serif;
+    color: rgba(255, 255, 255, 0.75); letter-spacing: 1px; pointer-events: none;
+    font-family: 'Orbitron', sans-serif; text-shadow: 1px 1px 2px #000;
   }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -120,7 +113,7 @@
 <div id="stage-fade"></div>
 <div id="screen-flash"></div>
 <div id="reticle"></div>
-<div id="game-toast">NOTIFY</div>
+<div id="game-toast">STAGE NOTIFICATION</div>
 
 <div id="hud">
   <div id="title-bar">
@@ -135,7 +128,7 @@
   </div>
   <div class="bar-container">
     <div id="hp-player-bar" class="bar-fill"></div>
-    <div class="bar-label">PLAYER VITALITY</div>
+    <div class="bar-label">MECH VITALITY</div>
   </div>
   <div class="bar-container">
     <div id="hp-boss-bar" class="bar-fill"></div>
@@ -144,15 +137,16 @@
 </div>
 
 <div id="mobile-ui">
-  <div id="btn-shoot" class="touch-btn">FIRE</div>
-  <div id="btn-jump" class="touch-btn">JUMP</div>
-  <div id="joystick-zone"><div id="joystick-thumb"></div></div>
+  <div id="single-touchpad">
+    <div id="touchpad-knob">FIRE</div>
+    <div id="touchpad-guide">DRAG: MOVE | TAP: FIRE | SWIPE UP: JUMP</div>
+  </div>
 </div>
 
 <div id="desktop-legend">WASD = MOVE | SPACE = JUMP | CLICK / SHIFT = SHOOT</div>
 
 <script>
-// --- AUDIO SYNTHESIS ENGINE (Web Audio API) ---
+// --- AUDIO SYNTHESIZER ---
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 function playFx(type) {
   if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -171,7 +165,7 @@ function playFx(type) {
   } else if (type === 'boss_shot') {
     osc.type = 'triangle';
     osc.frequency.setValueAtTime(260, now);
-    osc.frequency.exponentialRampToValueAtTime(50, now + 0.2);
+    osc.frequency.exponentialRampToValueAtTime(45, now + 0.2);
     gain.gain.setValueAtTime(0.28, now);
     gain.gain.linearRampToValueAtTime(0, now + 0.2);
     osc.start(now); osc.stop(now + 0.2);
@@ -198,15 +192,15 @@ function playFx(type) {
     osc.start(now); osc.stop(now + 0.45);
   } else if (type === 'warp') {
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(180, now);
-    osc.frequency.exponentialRampToValueAtTime(620, now + 0.4);
-    gain.gain.setValueAtTime(0.35, now);
-    gain.gain.linearRampToValueAtTime(0, now + 0.4);
-    osc.start(now); osc.stop(now + 0.4);
+    osc.frequency.setValueAtTime(220, now);
+    osc.frequency.exponentialRampToValueAtTime(680, now + 0.35);
+    gain.gain.setValueAtTime(0.3, now);
+    gain.gain.linearRampToValueAtTime(0, now + 0.35);
+    osc.start(now); osc.stop(now + 0.35);
   }
 }
 
-function showToast(msg, color = '#00ffaa') {
+function showToast(msg, color = '#ffdd00') {
   const t = document.getElementById('game-toast');
   t.innerText = msg;
   t.style.color = color;
@@ -216,10 +210,10 @@ function showToast(msg, color = '#00ffaa') {
   setTimeout(() => t.style.opacity = '0', 1700);
 }
 
-// --- THREE.JS SCENE SETUP ---
+// --- THREE.JS SCENE CONFIGURATION ---
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x06030b);
-scene.fog = new THREE.FogExp2(0x06030b, 0.012);
+scene.background = new THREE.Color(0x38b6ff);
+scene.fog = new THREE.FogExp2(0x38b6ff, 0.007);
 
 const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 400);
 const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -228,64 +222,68 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 document.body.appendChild(renderer.domElement);
 
-const ambLight = new THREE.AmbientLight(0x402518, 1.3);
+const ambLight = new THREE.AmbientLight(0xffffff, 1.1);
 scene.add(ambLight);
 
-const dirLight = new THREE.DirectionalLight(0xffaa66, 1.4);
-dirLight.position.set(30, 60, 40);
+const dirLight = new THREE.DirectionalLight(0xfff5e6, 1.3);
+dirLight.position.set(40, 70, 30);
 dirLight.castShadow = true;
 dirLight.shadow.mapSize.width = 1024;
 dirLight.shadow.mapSize.height = 1024;
 scene.add(dirLight);
 
-// Rectangular Arena Dimensions
+// Rectangular Battlefield
 const ARENA_W = 60;
 const ARENA_L = 90;
 
-// Arena Container Group & Obstacles Storage
 const arenaGroup = new THREE.Group();
 scene.add(arenaGroup);
-let obstacles = []; // Solid obstacles (bones in desert)
-let foliage = [];   // Visual-only cover (bushes in jungle)
 
-// --- PROCEDURAL TEXTURE GENERATORS ---
-function makeCastleTexture() {
+// Environment Props Collections
+let boneObstacles = []; // Stage 2 wall obstructions
+let foliageBushes = []; // Stage 3 visual concealment bushes
+
+// --- ARENA TEXTURE CREATORS ---
+function makeCastleGrassTiles() {
   const c = document.createElement('canvas'); c.width = 256; c.height = 256;
   const ctx = c.getContext('2d');
-  ctx.fillStyle = '#0f0c1a'; ctx.fillRect(0, 0, 256, 256);
-  ctx.strokeStyle = '#00f0ff33'; ctx.lineWidth = 4; ctx.strokeRect(0, 0, 256, 256);
-  ctx.strokeStyle = '#ff00ea22'; ctx.lineWidth = 2;
-  ctx.strokeRect(16, 16, 224, 224);
+  ctx.fillStyle = '#7ac70c'; ctx.fillRect(0, 0, 256, 256);
+  ctx.strokeStyle = '#8ee60d'; ctx.lineWidth = 4;
+  ctx.strokeRect(0, 0, 256, 256);
+  ctx.fillStyle = '#6ab308';
+  for (let i = 0; i < 40; i++) {
+    ctx.fillRect(Math.random() * 240, Math.random() * 240, 6, 8);
+  }
   const tex = new THREE.CanvasTexture(c);
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
   tex.repeat.set(ARENA_W / 6, ARENA_L / 6);
   return tex;
 }
 
-function makeDesertTexture() {
+function makeDesertSandTexture() {
   const c = document.createElement('canvas'); c.width = 256; c.height = 256;
   const ctx = c.getContext('2d');
-  ctx.fillStyle = '#1c1206'; ctx.fillRect(0, 0, 256, 256);
-  ctx.fillStyle = '#2d1d0a';
-  for (let i = 0; i < 400; i++) {
-    ctx.fillRect(Math.random() * 256, Math.random() * 256, 2, 2);
+  ctx.fillStyle = '#e6af4b'; ctx.fillRect(0, 0, 256, 256);
+  ctx.fillStyle = '#d49b37';
+  for (let i = 0; i < 200; i++) {
+    ctx.fillRect(Math.random() * 256, Math.random() * 256, 3, 3);
   }
-  ctx.strokeStyle = '#e69a2822'; ctx.lineWidth = 6;
-  ctx.beginPath(); ctx.moveTo(0, 60); ctx.bezierCurveTo(90, 80, 160, 40, 256, 60); ctx.stroke();
+  ctx.strokeStyle = '#f5c66e'; ctx.lineWidth = 6;
+  ctx.beginPath(); ctx.moveTo(0, 50); ctx.bezierCurveTo(90, 80, 160, 20, 256, 50); ctx.stroke();
   const tex = new THREE.CanvasTexture(c);
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
   tex.repeat.set(ARENA_W / 8, ARENA_L / 8);
   return tex;
 }
 
-function makeJungleTexture() {
+function makeJungleMossTexture() {
   const c = document.createElement('canvas'); c.width = 256; c.height = 256;
   const ctx = c.getContext('2d');
-  ctx.fillStyle = '#07170a'; ctx.fillRect(0, 0, 256, 256);
-  ctx.fillStyle = '#0f2f15';
+  ctx.fillStyle = '#2d6a1e'; ctx.fillRect(0, 0, 256, 256);
+  ctx.fillStyle = '#1e4b14';
   for (let i = 0; i < 30; i++) {
     ctx.beginPath();
-    ctx.arc(Math.random() * 256, Math.random() * 256, Math.random() * 18 + 6, 0, Math.PI * 2);
+    ctx.arc(Math.random() * 256, Math.random() * 256, Math.random() * 22 + 6, 0, Math.PI * 2);
     ctx.fill();
   }
   const tex = new THREE.CanvasTexture(c);
@@ -294,194 +292,219 @@ function makeJungleTexture() {
   return tex;
 }
 
-// --- DYNAMIC ARENA BUILDERS ---
+// --- DYNAMIC STAGE BUILDERS ---
 
-// 1. Stage 1: Castle Courtyard
-function buildCastleArena() {
-  scene.background.setHex(0x060412);
-  scene.fog.color.setHex(0x060412);
-  ambLight.color.setHex(0x352850);
-  dirLight.color.setHex(0x88ccff);
+// Stage 1: Castle Courtyard (Bright & Vibrant, based on reference style)
+function buildCastleStage() {
+  scene.background.setHex(0x4cb5f5); // Vibrant bright blue sky
+  scene.fog.color.setHex(0x4cb5f5);
+  ambLight.color.setHex(0xffffff);
+  dirLight.color.setHex(0xfffae6);
 
+  // Bright Stylized Tiled Grass Floor
   const floor = new THREE.Mesh(
     new THREE.PlaneGeometry(ARENA_W * 2, ARENA_L * 2),
-    new THREE.MeshStandardMaterial({ map: makeCastleTexture(), roughness: 0.6, metalness: 0.3 })
+    new THREE.MeshStandardMaterial({ map: makeCastleGrassTiles(), roughness: 0.6 })
   );
   floor.rotation.x = -Math.PI / 2;
   floor.receiveShadow = true;
   arenaGroup.add(floor);
 
-  // Glowing Rampart Perimeter Walls
-  const wallMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff, transparent: true, opacity: 0.22, side: THREE.DoubleSide });
-  const railMat = new THREE.MeshBasicMaterial({ color: 0x00f0ff });
-  const pylonMat = new THREE.MeshStandardMaterial({ color: 0x141028, roughness: 0.4, metalness: 0.8 });
+  // Castle Stone Walls with Golden Crenellations
+  const stoneMat = new THREE.MeshStandardMaterial({ color: 0xd8dde8, roughness: 0.4 });
+  const redCanopyMat = new THREE.MeshStandardMaterial({ color: 0xe62a22, roughness: 0.5 });
+  const goldTrimMat = new THREE.MeshStandardMaterial({ color: 0xffb703, roughness: 0.3 });
 
-  function addWall(x, z, w, l) {
-    const wall = new THREE.Mesh(new THREE.BoxGeometry(w, 8, l), wallMat);
-    wall.position.set(x, 4, z);
-    const rail = new THREE.Mesh(new THREE.BoxGeometry(w + 0.2, 0.4, l + 0.2), railMat);
-    rail.position.set(x, 8, z);
-    arenaGroup.add(wall, rail);
+  function addCastleWall(x, z, w, l) {
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(w, 8.5, l), stoneMat);
+    wall.position.set(x, 4.25, z);
+    const trim = new THREE.Mesh(new THREE.BoxGeometry(w + 0.3, 0.8, l + 0.3), redCanopyMat);
+    trim.position.set(x, 8.8, z);
+    arenaGroup.add(wall, trim);
   }
-  addWall(0, -ARENA_L, ARENA_W * 2, 0.8);
-  addWall(0, ARENA_L, ARENA_W * 2, 0.8);
-  addWall(-ARENA_W, 0, 0.8, ARENA_L * 2);
-  addWall(ARENA_W, 0, 0.8, ARENA_L * 2);
+  addCastleWall(0, -ARENA_L, ARENA_W * 2, 1.2);
+  addCastleWall(0, ARENA_L, ARENA_W * 2, 1.2);
+  addCastleWall(-ARENA_W, 0, 1.2, ARENA_L * 2);
+  addCastleWall(ARENA_W, 0, 1.2, ARENA_L * 2);
 
-  // Battlement Pylons & Neon Banners
-  [[-ARENA_W, -ARENA_L], [ARENA_W, -ARENA_L], [-ARENA_W, ARENA_L], [ARENA_W, ARENA_L]].forEach(([px, pz]) => {
-    const tower = new THREE.Mesh(new THREE.BoxGeometry(4, 16, 4), pylonMat);
-    tower.position.set(px, 8, pz);
-    const crest = new THREE.Mesh(new THREE.BoxGeometry(2, 6, 0.2), new THREE.MeshBasicMaterial({ color: 0xff00ea }));
-    crest.position.set(0, 0, 2.2);
-    tower.add(crest);
+  // 4 Grand Watchtowers (Reference style: grey stone, conical red roofs, gold crowns)
+  [[-ARENA_W, -ARENA_L], [ARENA_W, -ARENA_L], [-ARENA_W, ARENA_L], [ARENA_W, ARENA_L]].forEach(([tx, tz]) => {
+    const tower = new THREE.Group();
+    tower.position.set(tx, 0, tz);
+
+    const base = new THREE.Mesh(new THREE.BoxGeometry(8, 16, 8), stoneMat);
+    base.position.y = 8;
+    const roof = new THREE.Mesh(new THREE.ConeGeometry(5.5, 9, 8), redCanopyMat);
+    roof.position.y = 20.5;
+    const finial = new THREE.Mesh(new THREE.SphereGeometry(0.8, 8, 8), goldTrimMat);
+    finial.position.y = 25.5;
+
+    // Golden Crown Emblem on tower face
+    const emblem = new THREE.Mesh(new THREE.BoxGeometry(2.8, 2, 0.4), goldTrimMat);
+    emblem.position.set(0, 10, tz < 0 ? 4.2 : -4.2);
+
+    tower.add(base, roof, finial, emblem);
     arenaGroup.add(tower);
   });
+
+  // Flowing Red Banners along wall perimeter
+  for (let z = -ARENA_L + 20; z <= ARENA_L - 20; z += 26) {
+    [-ARENA_W + 1.2, ARENA_W - 1.2].forEach(bx => {
+      const banner = new THREE.Mesh(new THREE.PlaneGeometry(3.5, 6), redCanopyMat);
+      banner.position.set(bx, 6, z);
+      banner.rotation.y = bx > 0 ? -Math.PI / 2 : Math.PI / 2;
+      arenaGroup.add(banner);
+    });
+  }
 }
 
-// 2. Stage 2: Desert Wasteland (Scattered Bone Obstructions)
-function buildDesertArena() {
-  scene.background.setHex(0x120a04);
-  scene.fog.color.setHex(0x120a04);
-  ambLight.color.setHex(0x55351a);
-  dirLight.color.setHex(0xffaa44);
+// Stage 2: Desert Wasteland (Giant Ribcage Bones as Jumping Obstructions)
+function buildDesertStage() {
+  scene.background.setHex(0xf7c873); // Warm golden sky
+  scene.fog.color.setHex(0xf7c873);
+  ambLight.color.setHex(0xffe2b8);
+  dirLight.color.setHex(0xffc04d);
 
   const floor = new THREE.Mesh(
     new THREE.PlaneGeometry(ARENA_W * 2, ARENA_L * 2),
-    new THREE.MeshStandardMaterial({ map: makeDesertTexture(), roughness: 0.9, metalness: 0.1 })
+    new THREE.MeshStandardMaterial({ map: makeDesertSandTexture(), roughness: 0.9 })
   );
   floor.rotation.x = -Math.PI / 2;
   floor.receiveShadow = true;
   arenaGroup.add(floor);
 
-  // Sandy Perimeter Energy Sand-Barriers
-  const wallMat = new THREE.MeshBasicMaterial({ color: 0xffaa00, transparent: true, opacity: 0.25, side: THREE.DoubleSide });
-  const railMat = new THREE.MeshBasicMaterial({ color: 0xff8800 });
+  // Sandstone Boundary Walls
+  const sandWallMat = new THREE.MeshStandardMaterial({ color: 0xc98c36, roughness: 0.8 });
+  const trimMat = new THREE.MeshStandardMaterial({ color: 0x9e6319, roughness: 0.9 });
   function addWall(x, z, w, l) {
-    const wall = new THREE.Mesh(new THREE.BoxGeometry(w, 8, l), wallMat);
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(w, 8, l), sandWallMat);
     wall.position.set(x, 4, z);
-    const rail = new THREE.Mesh(new THREE.BoxGeometry(w + 0.2, 0.4, l + 0.2), railMat);
-    rail.position.set(x, 8, z);
-    arenaGroup.add(wall, rail);
+    const trim = new THREE.Mesh(new THREE.BoxGeometry(w + 0.3, 0.6, l + 0.3), trimMat);
+    trim.position.set(x, 8.2, z);
+    arenaGroup.add(wall, trim);
   }
-  addWall(0, -ARENA_L, ARENA_W * 2, 0.8);
-  addWall(0, ARENA_L, ARENA_W * 2, 0.8);
-  addWall(-ARENA_W, 0, 0.8, ARENA_L * 2);
-  addWall(ARENA_W, 0, 0.8, ARENA_L * 2);
+  addWall(0, -ARENA_L, ARENA_W * 2, 1.2);
+  addWall(0, ARENA_L, ARENA_W * 2, 1.2);
+  addWall(-ARENA_W, 0, 1.2, ARENA_L * 2);
+  addWall(ARENA_W, 0, 1.2, ARENA_L * 2);
 
-  // Scatter Giant Bones Across Desert (Act as Solid Collision Obstacles)
-  const boneMat = new THREE.MeshStandardMaterial({ color: 0xd9c8a9, roughness: 0.7 });
-  for (let i = 0; i < 18; i++) {
-    const boneGroup = new THREE.Group();
-    const bx = (Math.random() - 0.5) * (ARENA_W * 1.6);
-    const bz = (Math.random() - 0.5) * (ARENA_L * 1.6);
-    // Don't spawn right in the center spawn lanes
-    if (Math.hypot(bx, bz) < 14) continue;
+  // Large Bones scattered across arena (Block Boss Bullets & Player walks into them, can JUMP over!)
+  const boneMat = new THREE.MeshStandardMaterial({ color: 0xf5ebd0, roughness: 0.65 });
+  for (let i = 0; i < 16; i++) {
+    const bx = (Math.random() - 0.5) * (ARENA_W * 1.5);
+    const bz = (Math.random() - 0.5) * (ARENA_L * 1.5);
+    if (Math.hypot(bx, bz) < 14) continue; // Keep center clear
 
-    // Ribcage Arc
-    const arc = new THREE.Mesh(new THREE.TorusGeometry(3.5, 0.65, 8, 12, Math.PI), boneMat);
-    arc.rotation.z = Math.PI;
-    arc.rotation.y = Math.random() * Math.PI;
-    arc.position.y = 1.0;
-    arc.castShadow = true;
-    boneGroup.add(arc);
-    boneGroup.position.set(bx, 0, bz);
-    arenaGroup.add(boneGroup);
+    const boneCluster = new THREE.Group();
+    // Low arch ribcage (height ~2.5, player jump force easily clears it!)
+    const rib = new THREE.Mesh(new THREE.TorusGeometry(3.2, 0.7, 8, 16, Math.PI), boneMat);
+    rib.rotation.z = Math.PI;
+    rib.rotation.y = Math.random() * Math.PI;
+    rib.position.y = 0.5;
+    rib.castShadow = true;
 
-    obstacles.push({ x: bx, z: bz, radius: 3.2 });
+    // Spine Vertebrae Pillar
+    const spine = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 1.1, 2.4, 8), boneMat);
+    spine.position.set(1.5, 1.2, 0);
+
+    boneCluster.add(rib, spine);
+    boneCluster.position.set(bx, 0, bz);
+    arenaGroup.add(boneCluster);
+
+    boneObstacles.push({
+      x: bx, z: bz,
+      radius: 3.4,
+      height: 2.6 // If player y > 2.6, they jump over!
+    });
   }
 }
 
-// 3. Stage 3: Jungle Clearing (Dense Bushes for Visual Cover)
-function buildJungleArena() {
-  scene.background.setHex(0x041008);
-  scene.fog.color.setHex(0x041008);
-  ambLight.color.setHex(0x1a4524);
-  dirLight.color.setHex(0x88ff88);
+// Stage 3: Jungle Clearing (Dense Bushes as Visual Concealment)
+function buildJungleStage() {
+  scene.background.setHex(0x52b788); // Fresh emerald canopy daylight
+  scene.fog.color.setHex(0x52b788);
+  ambLight.color.setHex(0xdaf2dc);
+  dirLight.color.setHex(0xd8f3dc);
 
   const floor = new THREE.Mesh(
     new THREE.PlaneGeometry(ARENA_W * 2, ARENA_L * 2),
-    new THREE.MeshStandardMaterial({ map: makeJungleTexture(), roughness: 0.8, metalness: 0.1 })
+    new THREE.MeshStandardMaterial({ map: makeJungleMossTexture(), roughness: 0.85 })
   );
   floor.rotation.x = -Math.PI / 2;
   floor.receiveShadow = true;
   arenaGroup.add(floor);
 
-  // Toxic Vine Energy Boundaries
-  const wallMat = new THREE.MeshBasicMaterial({ color: 0x00ff66, transparent: true, opacity: 0.22, side: THREE.DoubleSide });
-  const railMat = new THREE.MeshBasicMaterial({ color: 0x00ff88 });
+  // Jungle Tree-trunk & Vine Boundary
+  const logMat = new THREE.MeshStandardMaterial({ color: 0x3d2817, roughness: 0.9 });
+  const vineMat = new THREE.MeshStandardMaterial({ color: 0x2d6a4f, roughness: 0.8 });
   function addWall(x, z, w, l) {
-    const wall = new THREE.Mesh(new THREE.BoxGeometry(w, 8, l), wallMat);
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(w, 8, l), logMat);
     wall.position.set(x, 4, z);
-    const rail = new THREE.Mesh(new THREE.BoxGeometry(w + 0.2, 0.4, l + 0.2), railMat);
-    rail.position.set(x, 8, z);
-    arenaGroup.add(wall, rail);
+    const vine = new THREE.Mesh(new THREE.BoxGeometry(w + 0.3, 0.8, l + 0.3), vineMat);
+    vine.position.set(x, 8.2, z);
+    arenaGroup.add(wall, vine);
   }
-  addWall(0, -ARENA_L, ARENA_W * 2, 0.8);
-  addWall(0, ARENA_L, ARENA_W * 2, 0.8);
-  addWall(-ARENA_W, 0, 0.8, ARENA_L * 2);
-  addWall(ARENA_W, 0, 0.8, ARENA_L * 2);
+  addWall(0, -ARENA_L, ARENA_W * 2, 1.2);
+  addWall(0, ARENA_L, ARENA_W * 2, 1.2);
+  addWall(-ARENA_W, 0, 1.2, ARENA_L * 2);
+  addWall(ARENA_W, 0, 1.2, ARENA_L * 2);
 
-  // Foliage & Dense Bushes (Visual Cover: projectiles pass through)
-  const bushMat = new THREE.MeshStandardMaterial({ color: 0x185922, roughness: 0.9, flatShading: true });
-  const flowerMat = new THREE.MeshBasicMaterial({ color: 0xff0088 });
+  // Lush Foliage Bushes (Visual Cover Only: Bullets Pass Right Through)
+  const leafMat = new THREE.MeshStandardMaterial({ color: 0x2d8a4e, roughness: 0.9, flatShading: true });
+  const flowerMat = new THREE.MeshBasicMaterial({ color: 0xff477e });
 
-  for (let i = 0; i < 28; i++) {
-    const fx = (Math.random() - 0.5) * (ARENA_W * 1.7);
-    const fz = (Math.random() - 0.5) * (ARENA_L * 1.7);
-    if (Math.hypot(fx, fz) < 12) continue;
+  for (let i = 0; i < 24; i++) {
+    const fx = (Math.random() - 0.5) * (ARENA_W * 1.6);
+    const fz = (Math.random() - 0.5) * (ARENA_L * 1.6);
+    if (Math.hypot(fx, fz) < 14) continue;
 
-    const bCluster = new THREE.Group();
-    for (let j = 0; j < 3; j++) {
-      const bPart = new THREE.Mesh(new THREE.DodecahedronGeometry(1.8 + Math.random() * 1.2, 1), bushMat);
-      bPart.position.set((Math.random() - 0.5) * 2, 1.4 + Math.random() * 0.8, (Math.random() - 0.5) * 2);
-      bPart.castShadow = true;
-      bCluster.add(bPart);
+    const bush = new THREE.Group();
+    for (let b = 0; b < 4; b++) {
+      const clump = new THREE.Mesh(new THREE.DodecahedronGeometry(2.0 + Math.random() * 1.2, 1), leafMat);
+      clump.position.set((Math.random() - 0.5) * 2.2, 1.5 + Math.random(), (Math.random() - 0.5) * 2.2);
+      clump.castShadow = true;
+      bush.add(clump);
     }
-    const blossom = new THREE.Mesh(new THREE.OctahedronGeometry(0.6), flowerMat);
-    blossom.position.set(0, 3.2, 0);
-    bCluster.add(blossom);
+    const blossom = new THREE.Mesh(new THREE.OctahedronGeometry(0.7), flowerMat);
+    blossom.position.set(0, 3.6, 0);
+    bush.add(blossom);
 
-    bCluster.position.set(fx, 0, fz);
-    arenaGroup.add(bCluster);
-    foliage.push(bCluster);
+    bush.position.set(fx, 0, fz);
+    arenaGroup.add(bush);
+    foliageBushes.push(bush);
   }
 }
 
-// Stage Switcher Function
 function loadStage(stageIndex) {
-  // Clear arena geometry
   while (arenaGroup.children.length > 0) {
     arenaGroup.remove(arenaGroup.children[0]);
   }
-  obstacles = [];
-  foliage = [];
+  boneObstacles = [];
+  foliageBushes = [];
 
   const stageNum = (stageIndex % 3) + 1;
   const ind = document.getElementById('stage-indicator');
 
   if (stageNum === 1) {
-    buildCastleArena();
+    buildCastleStage();
     ind.innerText = "STAGE 1: CASTLE COURTYARD";
     ind.style.color = "#00f0ff";
   } else if (stageNum === 2) {
-    buildDesertArena();
+    buildDesertStage();
     ind.innerText = "STAGE 2: DESERT WASTELAND";
     ind.style.color = "#ffaa00";
   } else {
-    buildJungleArena();
+    buildJungleStage();
     ind.innerText = "STAGE 3: JUNGLE CLEARING";
     ind.style.color = "#00ff88";
   }
 }
 
-// --- CHARACTER FACTORY ---
-
-// 1. Player Combat Mech Rig
+// --- PLAYER MECH RIG ---
 function buildPlayerMech() {
   const root = new THREE.Group();
-  const matArmor = new THREE.MeshStandardMaterial({ color: 0x1c2128, roughness: 0.4, metalness: 0.7 });
-  const matCyan = new THREE.MeshStandardMaterial({ color: 0x00f0ff, roughness: 0.2, metalness: 0.5 });
+  const matArmor = new THREE.MeshStandardMaterial({ color: 0x222a38, roughness: 0.4, metalness: 0.7 });
+  const matCyan = new THREE.MeshStandardMaterial({ color: 0x00f0ff, roughness: 0.2, metalness: 0.6 });
   const matVisor = new THREE.MeshBasicMaterial({ color: 0x00ffff });
 
   const torso = new THREE.Mesh(new THREE.BoxGeometry(1.7, 1.9, 1.3), matArmor);
@@ -489,9 +512,9 @@ function buildPlayerMech() {
   torso.castShadow = true;
   root.add(torso);
 
-  const chestPlating = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.2, 0.5), matCyan);
-  chestPlating.position.set(0, 0.2, 0.55);
-  torso.add(chestPlating);
+  const chest = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.2, 0.5), matCyan);
+  chest.position.set(0, 0.2, 0.55);
+  torso.add(chest);
 
   const head = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.75, 0.95), matArmor);
   head.position.set(0, 1.4, 0);
@@ -500,7 +523,7 @@ function buildPlayerMech() {
   head.add(visor);
   torso.add(head);
 
-  // Blaster Cannon
+  // Arm Cannon
   const rArm = new THREE.Group();
   rArm.position.set(1.25, 0.4, 0);
   const cannon = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 1.4), matArmor);
@@ -514,7 +537,6 @@ function buildPlayerMech() {
   rArm.add(cannon);
   torso.add(rArm);
 
-  // Left Arm
   const lArm = new THREE.Group();
   lArm.position.set(-1.25, 0.4, 0);
   const foreArm = new THREE.Mesh(new THREE.BoxGeometry(0.45, 1.3, 0.45), matArmor);
@@ -522,19 +544,16 @@ function buildPlayerMech() {
   lArm.add(foreArm);
   torso.add(lArm);
 
-  // Legs
   const legR = new THREE.Group();
   legR.position.set(0.55, 1.0, 0);
   const upperR = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.6, 0.55), matArmor);
   upperR.position.y = -0.3;
-  upperR.castShadow = true;
   legR.add(upperR);
 
   const legL = new THREE.Group();
   legL.position.set(-0.55, 1.0, 0);
   const upperL = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.6, 0.55), matArmor);
   upperL.position.y = -0.3;
-  upperL.castShadow = true;
   legL.add(upperL);
 
   root.add(legR, legL);
@@ -542,103 +561,104 @@ function buildPlayerMech() {
   return root;
 }
 
-// 2. Boss 1: Castle Guardian (Iron Citadel Guardian)
+// --- BOSS TITAN FACTORY ---
+
+// 1. Stage 1: Castle Guardian (Iron Citadel Golem)
 function buildCastleGuardian() {
   const g = new THREE.Group();
-  const matHull = new THREE.MeshStandardMaterial({ color: 0x1f2438, roughness: 0.5, metalness: 0.8 });
-  const matCyan = new THREE.MeshStandardMaterial({ color: 0x00d0ff, roughness: 0.3 });
+  const matStone = new THREE.MeshStandardMaterial({ color: 0x4a5568, roughness: 0.6 });
+  const matGold = new THREE.MeshStandardMaterial({ color: 0xffb703, roughness: 0.3, metalness: 0.6 });
+  const matCrimson = new THREE.MeshStandardMaterial({ color: 0xd90429, roughness: 0.4 });
 
-  const core = new THREE.Mesh(new THREE.BoxGeometry(4.4, 3.2, 4.4), matHull);
-  core.position.y = 4.2;
-  core.castShadow = true;
-  g.add(core);
+  const body = new THREE.Mesh(new THREE.BoxGeometry(4.8, 3.4, 4.4), matStone);
+  body.position.y = 4.2;
+  body.castShadow = true;
+  g.add(body);
 
-  const crest = new THREE.Mesh(new THREE.ConeGeometry(1.6, 2.4, 4), matCyan);
-  crest.rotation.y = Math.PI / 4;
-  crest.position.set(0, 2.6, 0);
-  core.add(crest);
+  const royalCrown = new THREE.Mesh(new THREE.ConeGeometry(2.0, 2.6, 4), matGold);
+  royalCrown.rotation.y = Math.PI / 4;
+  royalCrown.position.set(0, 2.8, 0);
+  body.add(royalCrown);
 
-  // Dual Castle Cannons
-  [-1.8, 1.8].forEach(x => {
-    const cannon = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.55, 4.8, 12), matHull);
+  // Twin Siege Mortars
+  [-2.0, 2.0].forEach(x => {
+    const cannon = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.65, 4.8, 12), matCrimson);
     cannon.rotation.x = Math.PI / 2;
-    cannon.position.set(x, 0.2, 2.8);
-    core.add(cannon);
+    cannon.position.set(x, 0.2, 2.6);
+    body.add(cannon);
   });
 
   const legs = [];
   [[-2.2, -2], [2.2, -2], [-2.2, 2], [2.2, 2]].forEach(([lx, lz]) => {
-    const legPivot = new THREE.Group();
-    legPivot.position.set(lx, 3.4, lz);
-    const upper = new THREE.Mesh(new THREE.BoxGeometry(0.9, 2.4, 0.9), matHull);
-    upper.position.y = -1.2;
-    const foot = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.6, 1.8), matCyan);
-    foot.position.y = -2.4;
-    legPivot.add(upper, foot);
-    g.add(legPivot);
-    legs.push(legPivot);
+    const legP = new THREE.Group();
+    legP.position.set(lx, 3.2, lz);
+    const lMesh = new THREE.Mesh(new THREE.BoxGeometry(1.0, 2.5, 1.0), matStone);
+    lMesh.position.y = -1.2;
+    legP.add(lMesh);
+    g.add(legP);
+    legs.push(legP);
   });
 
-  g.parts = { core, legs };
+  g.parts = { body, legs };
   return g;
 }
 
-// 3. Boss 2: Desert Beast (Dune Colossus)
+// 2. Stage 2: Desert Beast (Dune Sand-Worm Colossus)
 function buildDesertBeast() {
   const g = new THREE.Group();
-  const matChitin = new THREE.MeshStandardMaterial({ color: 0x3d260f, roughness: 0.8 });
-  const matAmber = new THREE.MeshStandardMaterial({ color: 0xffaa00, roughness: 0.3 });
+  const matChitin = new THREE.MeshStandardMaterial({ color: 0x8a5a2b, roughness: 0.8 });
+  const matSandAmber = new THREE.MeshStandardMaterial({ color: 0xffaa00, roughness: 0.3 });
 
-  const body = new THREE.Mesh(new THREE.DodecahedronGeometry(2.8, 1), matChitin);
-  body.position.y = 3.8;
-  body.castShadow = true;
-  g.add(body);
+  const core = new THREE.Mesh(new THREE.DodecahedronGeometry(3.2, 1), matChitin);
+  core.position.y = 3.6;
+  core.castShadow = true;
+  g.add(core);
 
-  const head = new THREE.Mesh(new THREE.ConeGeometry(1.6, 3.2, 6), matAmber);
+  // Armored Mandibles
+  const head = new THREE.Mesh(new THREE.ConeGeometry(1.8, 3.4, 6), matSandAmber);
   head.rotation.x = Math.PI / 2;
   head.position.set(0, 0.4, 3.2);
-  body.add(head);
+  core.add(head);
 
-  // Spined segments
-  [-1.2, 0, 1.2].forEach(sz => {
-    const spine = new THREE.Mesh(new THREE.ConeGeometry(0.5, 2.2, 5), matAmber);
-    spine.position.set(0, 2.2, sz);
-    body.add(spine);
+  [-1.4, 0, 1.4].forEach(sz => {
+    const dorsalSpine = new THREE.Mesh(new THREE.ConeGeometry(0.6, 2.4, 5), matSandAmber);
+    dorsalSpine.position.set(0, 2.4, sz);
+    core.add(dorsalSpine);
   });
 
-  g.parts = { body };
+  g.parts = { core };
   return g;
 }
 
-// 4. Boss 3: Jungle Predator (Verdant Stalker)
+// 3. Stage 3: Jungle Predator (Verdant Thorn Stalker)
 function buildJunglePredator() {
   const g = new THREE.Group();
-  const matBark = new THREE.MeshStandardMaterial({ color: 0x142e16, roughness: 0.7 });
-  const matBloom = new THREE.MeshStandardMaterial({ color: 0x00ff77, roughness: 0.2 });
+  const matBark = new THREE.MeshStandardMaterial({ color: 0x1f3d23, roughness: 0.7 });
+  const matFoliage = new THREE.MeshStandardMaterial({ color: 0x38b000, roughness: 0.3 });
 
-  const chest = new THREE.Mesh(new THREE.BoxGeometry(4.0, 3.6, 3.0), matBark);
+  const chest = new THREE.Mesh(new THREE.BoxGeometry(4.2, 3.8, 3.2), matBark);
   chest.position.y = 4.4;
   chest.castShadow = true;
   g.add(chest);
 
-  const skull = new THREE.Mesh(new THREE.OctahedronGeometry(1.4), matBloom);
-  skull.position.set(0, 2.2, 0.6);
-  chest.add(skull);
+  const head = new THREE.Mesh(new THREE.OctahedronGeometry(1.5), matFoliage);
+  head.position.set(0, 2.2, 0.7);
+  chest.add(head);
 
   // Scythe Talons
   [-2.8, 2.8].forEach(sx => {
-    const talon = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.6, 4.4, 6), matBloom);
-    talon.position.set(sx, 0.2, 1.4);
-    talon.rotation.x = 0.5;
-    talon.rotation.z = sx > 0 ? -0.4 : 0.4;
-    chest.add(talon);
+    const scythe = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.6, 4.6, 6), matFoliage);
+    scythe.position.set(sx, 0.2, 1.5);
+    scythe.rotation.x = 0.6;
+    scythe.rotation.z = sx > 0 ? -0.4 : 0.4;
+    chest.add(scythe);
   });
 
   g.parts = { chest };
   return g;
 }
 
-// --- PLAYER INSTANCE ---
+// --- PLAYER STATE ---
 const player = {
   mesh: buildPlayerMech(),
   hp: 100, maxHp: 100,
@@ -649,34 +669,31 @@ const player = {
 player.mesh.position.set(0, 0, 45);
 scene.add(player.mesh);
 
-// --- HEALTH ORB DROP (15-SECOND RECOVERY) ---
+// --- HEALTH ORB ---
 let healthOrb = null;
 let orbSpawnTimer = 15.0;
 
 function spawnHealthOrb() {
   if (healthOrb) scene.remove(healthOrb.mesh);
-
   const root = new THREE.Group();
-  const orbMesh = new THREE.Mesh(new THREE.SphereGeometry(1.2, 16, 16), new THREE.MeshBasicMaterial({ color: 0x00ffaa }));
-  root.add(orbMesh);
-
-  const ring = new THREE.Mesh(new THREE.RingGeometry(1.6, 1.9, 16), new THREE.MeshBasicMaterial({ color: 0x00f0ff, side: THREE.DoubleSide }));
-  ring.rotation.x = Math.PI / 2;
-  root.add(ring);
+  const orb = new THREE.Mesh(new THREE.SphereGeometry(1.2, 16, 16), new THREE.MeshBasicMaterial({ color: 0x00ffaa }));
+  const halo = new THREE.Mesh(new THREE.RingGeometry(1.6, 1.9, 16), new THREE.MeshBasicMaterial({ color: 0x00f0ff, side: THREE.DoubleSide }));
+  halo.rotation.x = Math.PI / 2;
+  root.add(orb, halo);
 
   const rx = (Math.random() - 0.5) * (ARENA_W * 1.5);
   const rz = (Math.random() - 0.5) * (ARENA_L * 1.5);
   root.position.set(rx, 2.0, rz);
   scene.add(root);
 
-  healthOrb = { mesh: root, ring, active: true, radius: 2.2, time: 0 };
+  healthOrb = { mesh: root, halo, active: true, radius: 2.2, time: 0 };
 }
 
-// --- PROJECTILE FACTORY ---
+// --- PROJECTILE SYSTEM ---
 const bullets = [];
 const bulletGeo = new THREE.SphereGeometry(0.45, 8, 8);
 
-function fireProjectile(origin, angle, isPlayer = false, color = 0x00f0ff, speed = 48, spread = 0) {
+function fireProjectile(origin, angle, isPlayer = false, color = 0x00f0ff, speed = 50, spread = 0) {
   const mesh = new THREE.Mesh(bulletGeo, new THREE.MeshBasicMaterial({ color }));
   mesh.position.set(origin.x, origin.y, origin.z);
   scene.add(mesh);
@@ -727,7 +744,6 @@ function spawnNextBoss() {
   document.getElementById('hp-boss-bar').style.width = '100%';
 }
 
-// Scene Transition Handler
 function triggerStageTransition() {
   const fade = document.getElementById('stage-fade');
   fade.style.opacity = '1';
@@ -741,11 +757,11 @@ function triggerStageTransition() {
     player.mesh.position.set(0, 0, 45);
 
     fade.style.opacity = '0';
-    showToast(`STAGE ${(bossesDefeated % 3) + 1} COMMENCED!`);
+    showToast(`STAGE ${(bossesDefeated % 3) + 1} ENTERED!`);
   }, 480);
 }
 
-// --- CONTROLS INTERACTION ---
+// --- CONTROLS IMPLEMENTATION ---
 const input = { forward: 0, right: 0 };
 let isMouseDown = false;
 
@@ -768,70 +784,80 @@ function shoot() {
   }
 }
 
+// Device Detection
 const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 820;
 
 if (isMobile) {
   document.getElementById('mobile-ui').style.display = 'block';
   document.getElementById('desktop-legend').style.display = 'none';
 
-  const sBtn = document.getElementById('btn-shoot');
-  let autoShoot = null;
-  sBtn.addEventListener('touchstart', (e) => {
-    e.preventDefault(); shoot();
-    autoShoot = setInterval(shoot, 160);
-  });
-  sBtn.addEventListener('touchend', () => clearInterval(autoShoot));
+  // Single Integrated Touchpad (Drag = Move, Tap Center = Shoot, Swipe Up = Jump)
+  const pad = document.getElementById('single-touchpad');
+  const knob = document.getElementById('touchpad-knob');
+  let touchId = null, startX = 0, startY = 0, isDragging = false;
 
-  document.getElementById('btn-jump').addEventListener('touchstart', (e) => {
-    e.preventDefault(); jump();
-  });
-
-  const joyZone = document.getElementById('joystick-zone');
-  const joyThumb = document.getElementById('joystick-thumb');
-  let touchId = null, baseRect = null;
-
-  joyZone.addEventListener('touchstart', (e) => {
+  pad.addEventListener('touchstart', (e) => {
     e.preventDefault();
-    touchId = e.changedTouches[0].identifier;
-    baseRect = joyZone.getBoundingClientRect();
-  });
+    const t = e.changedTouches[0];
+    touchId = t.identifier;
+    startX = t.clientX;
+    startY = t.clientY;
+    isDragging = false;
+  }, { passive: false });
 
   window.addEventListener('touchmove', (e) => {
     if (touchId === null) return;
     for (let t of e.changedTouches) {
       if (t.identifier === touchId) {
-        const dx = t.clientX - (baseRect.left + baseRect.width / 2);
-        const dy = t.clientY - (baseRect.top + baseRect.height / 2);
-        const dist = Math.min(50, Math.hypot(dx, dy));
-        const angle = Math.atan2(dy, dx);
+        const dx = t.clientX - startX;
+        const dy = t.clientY - startY;
+        const dist = Math.hypot(dx, dy);
 
-        joyThumb.style.transform = `translate(calc(-50% + ${Math.cos(angle) * dist}px), calc(-50% + ${Math.sin(angle) * dist}px))`;
-        input.right = (Math.cos(angle) * dist) / 50;
-        input.forward = -(Math.sin(angle) * dist) / 50;
+        // Check if movement is significant (Drag to move)
+        if (dist > 12) {
+          isDragging = true;
+          const maxDist = 55;
+          const clampedDist = Math.min(maxDist, dist);
+          const angle = Math.atan2(dy, dx);
+
+          knob.style.transform = `translate(calc(-50% + ${Math.cos(angle) * clampedDist}px), calc(-50% + ${Math.sin(angle) * clampedDist}px))`;
+          input.right = (Math.cos(angle) * clampedDist) / maxDist;
+          input.forward = -(Math.sin(angle) * clampedDist) / maxDist;
+
+          // Swipe Up Detection -> Jump
+          if (dy < -48 && Math.abs(dx) < 30) {
+            jump();
+          }
+        }
       }
     }
   }, { passive: false });
 
-  const endJoy = (e) => {
+  const endTouch = (e) => {
     for (let t of e.changedTouches) {
       if (t.identifier === touchId) {
         touchId = null;
-        joyThumb.style.transform = `translate(-50%, -50%)`;
+        knob.style.transform = 'translate(-50%, -50%)';
         input.forward = 0; input.right = 0;
+
+        // If finger was released without significant drag, it's a Tap Center -> Shoot!
+        if (!isDragging) {
+          shoot();
+        }
       }
     }
   };
-  window.addEventListener('touchend', endJoy);
-  window.addEventListener('touchcancel', endJoy);
+  window.addEventListener('touchend', endTouch);
+  window.addEventListener('touchcancel', endTouch);
 
 } else {
-  // Desktop Controls: WASD + Space + Mouse Click OR Shift / Enter
+  // Desktop Controls: WASD + Space + Mouse Click OR Shift Key
   const keys = {};
 
   window.addEventListener('keydown', (e) => {
     keys[e.code] = true;
-    if (e.key === 'Shift' || e.code === 'ShiftLeft' || e.code === 'ShiftRight' || e.key === 'Enter' || e.code === 'Enter') {
-      keys['FireKey'] = true;
+    if (e.key === 'Shift' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+      keys['ShiftKey'] = true;
       shoot();
     }
     if (e.code === 'Space') jump();
@@ -839,8 +865,8 @@ if (isMobile) {
 
   window.addEventListener('keyup', (e) => {
     keys[e.code] = false;
-    if (e.key === 'Shift' || e.code === 'ShiftLeft' || e.code === 'ShiftRight' || e.key === 'Enter' || e.code === 'Enter') {
-      keys['FireKey'] = false;
+    if (e.key === 'Shift' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
+      keys['ShiftKey'] = false;
     }
   });
 
@@ -861,11 +887,11 @@ if (isMobile) {
   function pollDesktop() {
     input.forward = (keys['KeyW'] ? 1 : 0) - (keys['KeyS'] ? 1 : 0);
     input.right   = (keys['KeyD'] ? 1 : 0) - (keys['KeyA'] ? 1 : 0);
-    if (keys['FireKey'] || isMouseDown) shoot();
+    if (keys['ShiftKey'] || isMouseDown) shoot();
   }
 }
 
-// --- DAMAGE, HEALING, & INSTANT RESET ---
+// --- DAMAGE, HEAL, & RESTART ---
 function takeDamage(amt) {
   player.hp -= amt;
   playFx('hit');
@@ -880,8 +906,7 @@ function takeDamage(amt) {
 }
 
 function healPlayer(pct) {
-  const add = player.maxHp * pct;
-  player.hp = Math.min(player.maxHp, player.hp + add);
+  player.hp = Math.min(player.maxHp, player.hp + player.maxHp * pct);
   playFx('heal');
   showToast("+20% VITALITY RESTORED!");
 }
@@ -900,7 +925,7 @@ function resetGame() {
   spawnNextBoss();
 }
 
-// --- ENGINE LOOP ---
+// --- MAIN RUNTIME ENGINE ---
 let lastFrameTime = performance.now();
 loadStage(0);
 spawnNextBoss();
@@ -917,11 +942,14 @@ function update(dt) {
     const nextX = player.mesh.position.x + normR * player.speed * dt;
     const nextZ = player.mesh.position.z - normF * player.speed * dt;
 
-    // Check Solid Obstacle Collision (Desert Bones)
+    // Check Bone Collision in Stage 2 (Player can jump over if y > obstacle height!)
     let blocked = false;
-    for (let obs of obstacles) {
-      if (Math.hypot(nextX - obs.x, nextZ - obs.z) < player.radius + obs.radius) {
-        blocked = true; break;
+    for (let bone of boneObstacles) {
+      if (Math.hypot(nextX - bone.x, nextZ - bone.z) < player.radius + bone.radius) {
+        if (player.mesh.position.y < bone.height) {
+          blocked = true;
+          break;
+        }
       }
     }
 
@@ -942,11 +970,11 @@ function update(dt) {
     player.mesh.parts.lArm.rotation.x = 0;
   }
 
-  // Constrain Arena Perimeter
+  // Arena Boundaries
   player.mesh.position.x = Math.max(-ARENA_W + 2, Math.min(ARENA_W - 2, player.mesh.position.x));
   player.mesh.position.z = Math.max(-ARENA_L + 2, Math.min(ARENA_L - 2, player.mesh.position.z));
 
-  // Jumping Physics
+  // Jump Physics
   player.mesh.position.y += player.vy * dt;
   if (player.mesh.position.y > 0) {
     player.vy -= 30 * dt;
@@ -963,7 +991,7 @@ function update(dt) {
   camera.position.z = player.mesh.position.z + 24;
   camera.lookAt(player.mesh.position.x, player.mesh.position.y + 3.0, player.mesh.position.z - 8);
 
-  // 3. Health Orb Lifecycle
+  // 3. Health Orb System
   orbSpawnTimer -= dt;
   if (orbSpawnTimer <= 0) {
     spawnHealthOrb();
@@ -973,7 +1001,7 @@ function update(dt) {
   if (healthOrb && healthOrb.active) {
     healthOrb.time += dt;
     healthOrb.mesh.position.y = 2.0 + Math.sin(healthOrb.time * 3) * 0.4;
-    healthOrb.ring.rotation.z += dt * 2.5;
+    healthOrb.halo.rotation.z += dt * 2.5;
 
     const distToOrb = Math.hypot(
       player.mesh.position.x - healthOrb.mesh.position.x,
@@ -987,7 +1015,7 @@ function update(dt) {
     }
   }
 
-  // 4. Boss AI Behaviors & Patterns
+  // 4. Boss AI
   if (currentBoss) {
     const toPlayer = new THREE.Vector3().subVectors(player.mesh.position, currentBoss.mesh.position);
     const dist = toPlayer.length();
@@ -1000,7 +1028,7 @@ function update(dt) {
     const targetAngle = Math.atan2(toPlayer.x, toPlayer.z);
     currentBoss.mesh.rotation.y = targetAngle;
 
-    if (currentBoss.type === 0) { // Castle Guardian
+    if (currentBoss.type === 0) { // Stage 1: Castle Guardian (Dual Mortars)
       if (dist > 18) {
         currentBoss.mesh.position.x += toPlayer.x * currentBoss.speed * dt;
         currentBoss.mesh.position.z += toPlayer.z * currentBoss.speed * dt;
@@ -1012,13 +1040,13 @@ function update(dt) {
       if (currentBoss.attackTimer <= 0) {
         for (let s = -0.35; s <= 0.35; s += 0.35) {
           const spawnB = new THREE.Vector3(currentBoss.mesh.position.x, 3.8, currentBoss.mesh.position.z);
-          fireProjectile(spawnB, targetAngle, false, 0xff0055, 26, s);
+          fireProjectile(spawnB, targetAngle, false, 0xff0055, 28, s);
         }
         playFx('boss_shot');
         currentBoss.attackTimer = 1.3;
       }
     } 
-    else if (currentBoss.type === 1) { // Desert Beast (Dune Colossus)
+    else if (currentBoss.type === 1) { // Stage 2: Desert Colossus (High Speed Sand Shards)
       const strafeX = -toPlayer.z;
       const strafeZ = toPlayer.x;
       const strafeDir = Math.sin(currentBoss.stateTimer * 2) > 0 ? 1 : -1;
@@ -1029,12 +1057,12 @@ function update(dt) {
 
       if (currentBoss.attackTimer <= 0) {
         const spawnB = new THREE.Vector3(currentBoss.mesh.position.x, 2.5, currentBoss.mesh.position.z);
-        fireProjectile(spawnB, targetAngle, false, 0xffbb00, 38, (Math.random() - 0.5) * 0.15);
+        fireProjectile(spawnB, targetAngle, false, 0xffaa00, 38, (Math.random() - 0.5) * 0.18);
         playFx('boss_shot');
         currentBoss.attackTimer = 0.36;
       }
     } 
-    else if (currentBoss.type === 2) { // Jungle Predator (Verdant Stalker)
+    else if (currentBoss.type === 2) { // Stage 3: Jungle Predator (Thorn Bursts & Charges)
       if (currentBoss.chargeTimer > 0) {
         currentBoss.chargeTimer -= dt;
         currentBoss.mesh.position.x += toPlayer.x * 24 * dt;
@@ -1059,20 +1087,39 @@ function update(dt) {
     currentBoss.mesh.position.z = Math.max(-ARENA_L + 4, Math.min(ARENA_L - 4, currentBoss.mesh.position.z));
   }
 
-  // 5. Accurate Bullet Hit Collisions
+  // 5. Projectiles Simulation & Wall/Bone Collision Checks
   for (let i = bullets.length - 1; i >= 0; i--) {
     const b = bullets[i];
     b.mesh.position.x += b.vx * dt;
     b.mesh.position.z += b.vz * dt;
     b.life -= dt;
 
+    // Check Arena Wall Out-of-Bounds
     if (Math.abs(b.mesh.position.x) >= ARENA_W || Math.abs(b.mesh.position.z) >= ARENA_L || b.life <= 0) {
       scene.remove(b.mesh);
       bullets.splice(i, 1);
       continue;
     }
 
-    // Player Bullet -> Hits Boss
+    // Stage 2 Bones Block Boss Bullets!
+    if (!b.isPlayer) {
+      let absorbed = false;
+      for (let bone of boneObstacles) {
+        if (Math.hypot(b.mesh.position.x - bone.x, b.mesh.position.z - bone.z) < bone.radius) {
+          if (b.mesh.position.y < bone.height + 0.5) {
+            absorbed = true;
+            break;
+          }
+        }
+      }
+      if (absorbed) {
+        scene.remove(b.mesh);
+        bullets.splice(i, 1);
+        continue;
+      }
+    }
+
+    // Player Bullet Hits Boss
     if (b.isPlayer && currentBoss) {
       const distXZ = Math.hypot(
         b.mesh.position.x - currentBoss.mesh.position.x,
@@ -1099,7 +1146,7 @@ function update(dt) {
       }
     }
 
-    // Boss Bullet -> Hits Player
+    // Boss Bullet Hits Player
     if (!b.isPlayer) {
       const distXZ = Math.hypot(
         b.mesh.position.x - player.mesh.position.x,
