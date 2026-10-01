@@ -1,30 +1,632 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SHOOTOUT ⚔️</title>
-    <style>
-        html, body {
-            overflow: hidden;
-            width: 100%;
-            height: 100%;
-            margin: 0;
-            padding: 0;
-            background: #000;
-        }
-        #renderCanvas {
-            width: 100%;
-            height: 100%;
-            touch-action: none;
-            display: block;
-        }
-    </style>
-    <!-- Babylon.js CDN -->
-    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+<title>SHOOTOUT ⚔️</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #38b6ff; font-family: monospace, sans-serif; }
+  #renderCanvas { width: 100%; height: 100%; display: block; touch-action: none; }
+
+  /* Voxel Center Crosshair */
+  #crosshair {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 20px; height: 20px; pointer-events: none; z-index: 10;
+  }
+  #crosshair::before {
+    content: ''; position: absolute; top: 0; left: 8px; width: 4px; height: 20px;
+    background: #00f0ff; box-shadow: 0 0 6px #00f0ff;
+  }
+  #crosshair::after {
+    content: ''; position: absolute; top: 8px; left: 0; width: 20px; height: 4px;
+    background: #00f0ff; box-shadow: 0 0 6px #00f0ff;
+  }
+
+  /* HUD */
+  #hud {
+    position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
+    width: 90%; max-width: 600px; z-index: 10; pointer-events: none;
+    text-shadow: 2px 2px 0 #000; color: #fff;
+  }
+  #hud-header {
+    display: flex; justify-content: space-between; font-weight: bold; font-size: 15px; margin-bottom: 6px;
+  }
+  #hud-stage { color: #ffea00; }
+  .bar-box {
+    background: rgba(0,0,0,0.5); border: 2px solid #fff; height: 16px; border-radius: 4px;
+    margin-bottom: 6px; overflow: hidden;
+  }
+  #p-bar { width: 100%; height: 100%; background: #00ff88; transition: width 0.1s linear; }
+  #b-bar { width: 100%; height: 100%; background: #ff0055; transition: width 0.1s linear; }
+
+  /* Mobile Controls */
+  #mobile-ui { display: none; position: fixed; inset: 0; pointer-events: none; z-index: 20; }
+  #joy-base {
+    position: absolute; bottom: 25px; left: 25px; width: 130px; height: 130px; border-radius: 50%;
+    border: 3px solid #ffea00; background: rgba(0,0,0,0.4); pointer-events: auto; touch-action: none;
+  }
+  #joy-stick {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 50px; height: 50px; border-radius: 50%; background: #ffea00; pointer-events: none;
+  }
+  .touch-btn {
+    position: absolute; border: 3px solid #fff; font-weight: bold; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; pointer-events: auto;
+  }
+  #btn-jump { bottom: 125px; right: 30px; width: 65px; height: 65px; background: #00ffaa; color: #000; }
+  #btn-fire { bottom: 30px; right: 30px; width: 80px; height: 80px; background: #ff0055; color: #fff; }
+</style>
+<!-- Stable Babylon Core CDN -->
+<script src="https://cdn.babylonjs.com/babylon.js"></script>
 </head>
 <body>
-    <canvas id="renderCanvas"></canvas>
-    <script src="shootout.js"></script>
+
+<div id="crosshair"></div>
+
+<div id="hud">
+  <div id="hud-header">
+    <span id="hud-stage">STAGE 1: VOXEL COURTYARD</span>
+    <span id="hud-score">DEFEATED: 0</span>
+  </div>
+  <div class="bar-box"><div id="p-bar"></div></div>
+  <div class="bar-box"><div id="b-bar"></div></div>
+</div>
+
+<div id="mobile-ui">
+  <div id="joy-base"><div id="joy-stick"></div></div>
+  <div id="btn-jump" class="touch-btn">JUMP</div>
+  <div id="btn-fire" class="touch-btn">FIRE</div>
+</div>
+
+<canvas id="renderCanvas"></canvas>
+
+<script>
+window.addEventListener('DOMContentLoaded', () => {
+  const canvas = document.getElementById('renderCanvas');
+  const engine = new BABYLON.Engine(canvas, true);
+
+  const state = {
+    stage: 0,
+    score: 0,
+    playerHp: 100,
+    maxHp: 100,
+    bossHp: 240,
+    maxBossHp: 240,
+    isMobile: /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 820
+  };
+
+  const ARENA_W = 60;
+  const ARENA_L = 80;
+  const WALL_H = 18; // High Voxel Arena Walls
+
+  let scene, camera, sun, fillLight;
+  let boss = null;
+  let stageMeshes = [];
+  let boneObstacles = [];
+  let bullets = [];
+
+  let weaponNode, muzzleLight, recoil = 0;
+  let playerVy = 0;
+  let bob = 0;
+  let isPointerLocked = false;
+  const input = { forward: 0, right: 0 };
+
+  // Audio SFX
+  const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  function playSound(type) {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const now = audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.connect(gain); gain.connect(audioCtx.destination);
+
+    if (type === 'fire') {
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(900, now);
+      osc.frequency.exponentialRampToValueAtTime(140, now + 0.1);
+      gain.gain.setValueAtTime(0.2, now);
+      gain.gain.linearRampToValueAtTime(0, now + 0.1);
+      osc.start(now); osc.stop(now + 0.1);
+    } else if (type === 'enemy_fire') {
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(240, now);
+      osc.frequency.exponentialRampToValueAtTime(60, now + 0.18);
+      gain.gain.setValueAtTime(0.25, now);
+      gain.gain.linearRampToValueAtTime(0, now + 0.18);
+      osc.start(now); osc.stop(now + 0.18);
+    } else if (type === 'hit') {
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(130, now);
+      osc.frequency.linearRampToValueAtTime(30, now + 0.14);
+      gain.gain.setValueAtTime(0.3, now);
+      gain.gain.linearRampToValueAtTime(0, now + 0.14);
+      osc.start(now); osc.stop(now + 0.14);
+    }
+  }
+
+  // 1. Scene Creation
+  scene = new BABYLON.Scene(engine);
+  scene.clearColor = new BABYLON.Color4(0.35, 0.75, 1.0, 1.0);
+
+  // 2. True First Person Camera
+  camera = new BABYLON.UniversalCamera("FpsCam", new BABYLON.Vector3(0, 2.0, 24), scene);
+  camera.setTarget(new BABYLON.Vector3(0, 2.0, 0));
+  camera.speed = 0;
+  camera.angularSensibility = 2200;
+  camera.minZ = 0.1;
+  camera.fov = 1.15;
+  camera.attachControl(canvas, true);
+
+  fillLight = new BABYLON.HemisphericLight("Fill", new BABYLON.Vector3(0, 1, 0), scene);
+  fillLight.intensity = 0.95;
+
+  sun = new BABYLON.DirectionalLight("Sun", new BABYLON.Vector3(-0.6, -1.2, -0.7), scene);
+  sun.position = new BABYLON.Vector3(30, 60, 40);
+  sun.intensity = 1.2;
+
+  // 3. First Person Voxel Blaster Viewmodel
+  weaponNode = new BABYLON.TransformNode("GunRoot", scene);
+  weaponNode.parent = camera;
+  weaponNode.position.set(0.38, -0.32, 0.75);
+
+  const matGunBlue = new BABYLON.StandardMaterial("gBlue", scene);
+  matGunBlue.diffuseColor = new BABYLON.Color3(0.15, 0.45, 0.85);
+
+  const matGunGold = new BABYLON.StandardMaterial("gGold", scene);
+  matGunGold.diffuseColor = new BABYLON.Color3(1.0, 0.75, 0.1);
+
+  const gBody = BABYLON.MeshBuilder.CreateBox("gBody", { width: 0.18, height: 0.22, depth: 0.65 }, scene);
+  gBody.parent = weaponNode;
+  gBody.material = matGunBlue;
+
+  const gRail = BABYLON.MeshBuilder.CreateBox("gRail", { width: 0.12, height: 0.08, depth: 0.5 }, scene);
+  gRail.parent = weaponNode;
+  gRail.position.set(0, 0.12, 0.05);
+  gRail.material = matGunGold;
+
+  [-0.04, 0.04].forEach(bx => {
+    const b = BABYLON.MeshBuilder.CreateBox("gBarrel", { width: 0.06, height: 0.06, depth: 0.45 }, scene);
+    b.parent = weaponNode;
+    b.position.set(bx, 0.02, 0.45);
+    b.material = matGunGold;
+  });
+
+  muzzleLight = BABYLON.MeshBuilder.CreateBox("mMuz", { size: 0.16 }, scene);
+  muzzleLight.parent = weaponNode;
+  muzzleLight.position.set(0, 0.02, 0.72);
+  const muzMat = new BABYLON.StandardMaterial("muzM", scene);
+  muzMat.emissiveColor = new BABYLON.Color3(0, 1, 1);
+  muzzleLight.material = muzMat;
+  muzzleLight.isVisible = false;
+
+  // 4. Voxel High Wall Generator
+  function makeHighVoxelWalls(wallMat, trimMat) {
+    const hw = ARENA_W / 2;
+    const hl = ARENA_L / 2;
+
+    function addWall(x, z, w, d) {
+      const wall = BABYLON.MeshBuilder.CreateBox("HWall", { width: w, height: WALL_H, depth: d }, scene);
+      wall.position.set(x, WALL_H / 2, z);
+      wall.material = wallMat;
+
+      const top = BABYLON.MeshBuilder.CreateBox("HTop", { width: w + 0.6, height: 1.6, depth: d + 0.6 }, scene);
+      top.position.set(x, WALL_H + 0.8, z);
+      top.material = trimMat;
+
+      stageMeshes.push(wall, top);
+    }
+    addWall(0, -hl, ARENA_W, 2.5);
+    addWall(0, hl, ARENA_W, 2.5);
+    addWall(-hw, 0, 2.5, ARENA_L);
+    addWall(hw, 0, 2.5, ARENA_L);
+
+    // High Corner Bastions
+    [[-hw, -hl], [hw, -hl], [-hw, hl], [hw, hl]].forEach(([cx, cz]) => {
+      const tower = BABYLON.MeshBuilder.CreateBox("Tower", { width: 7, height: WALL_H + 6, depth: 7 }, scene);
+      tower.position.set(cx, (WALL_H + 6) / 2, cz);
+      tower.material = wallMat;
+
+      const cap = BABYLON.MeshBuilder.CreateBox("Cap", { width: 8, height: 2, depth: 8 }, scene);
+      cap.position.set(cx, WALL_H + 7, cz);
+      cap.material = trimMat;
+
+      stageMeshes.push(tower, cap);
+    });
+  }
+
+  // 5. Stage Builders
+  function clearStage() {
+    stageMeshes.forEach(m => m.dispose());
+    stageMeshes = [];
+    boneObstacles = [];
+    if (boss && boss.root) {
+      boss.root.dispose();
+      boss = null;
+    }
+  }
+
+  function buildCastle() {
+    scene.clearColor = new BABYLON.Color4(0.35, 0.75, 1.0, 1.0);
+    const ground = BABYLON.MeshBuilder.CreateGround("Ground", { width: ARENA_W, height: ARENA_L }, scene);
+    const gMat = new BABYLON.StandardMaterial("gMat", scene);
+    gMat.diffuseColor = new BABYLON.Color3(0.42, 0.8, 0.25);
+    ground.material = gMat;
+    stageMeshes.push(ground);
+
+    const stone = new BABYLON.StandardMaterial("cStone", scene);
+    stone.diffuseColor = new BABYLON.Color3(0.85, 0.88, 0.92);
+
+    const red = new BABYLON.StandardMaterial("cRed", scene);
+    red.diffuseColor = new BABYLON.Color3(0.9, 0.22, 0.18);
+
+    makeHighVoxelWalls(stone, red);
+    boss = createBoss(0, "CITADEL GUARDIAN", 240, new BABYLON.Color3(0.5, 0.6, 0.75));
+  }
+
+  function buildDesert() {
+    scene.clearColor = new BABYLON.Color4(0.95, 0.82, 0.52, 1.0);
+    const ground = BABYLON.MeshBuilder.CreateGround("Ground", { width: ARENA_W, height: ARENA_L }, scene);
+    const gMat = new BABYLON.StandardMaterial("dGround", scene);
+    gMat.diffuseColor = new BABYLON.Color3(0.92, 0.72, 0.38);
+    ground.material = gMat;
+    stageMeshes.push(ground);
+
+    const sand = new BABYLON.StandardMaterial("sSand", scene);
+    sand.diffuseColor = new BABYLON.Color3(0.78, 0.52, 0.28);
+
+    const dSand = new BABYLON.StandardMaterial("dSand", scene);
+    dSand.diffuseColor = new BABYLON.Color3(0.55, 0.35, 0.18);
+
+    makeHighVoxelWalls(sand, dSand);
+
+    const boneMat = new BABYLON.StandardMaterial("bBone", scene);
+    boneMat.diffuseColor = new BABYLON.Color3(0.96, 0.94, 0.86);
+
+    for (let i = 0; i < 14; i++) {
+      const bx = (Math.random() - 0.5) * (ARENA_W - 14);
+      const bz = (Math.random() - 0.5) * (ARENA_L - 18);
+      if (Math.hypot(bx, bz) < 10) continue;
+
+      const rib = BABYLON.MeshBuilder.CreateTorus("Rib", { diameter: 5.2, thickness: 0.9, tessellation: 12 }, scene);
+      rib.position.set(bx, 0.4, bz);
+      rib.rotation.z = Math.PI / 2;
+      rib.rotation.y = Math.random() * Math.PI;
+      rib.material = boneMat;
+      stageMeshes.push(rib);
+      boneObstacles.push({ x: bx, z: bz, radius: 2.8, jumpH: 2.2 });
+    }
+
+    boss = createBoss(1, "DUNE COLOSSUS", 320, new BABYLON.Color3(0.88, 0.55, 0.24));
+  }
+
+  function buildJungle() {
+    scene.clearColor = new BABYLON.Color4(0.48, 0.85, 0.65, 1.0);
+    const ground = BABYLON.MeshBuilder.CreateGround("Ground", { width: ARENA_W, height: ARENA_L }, scene);
+    const gMat = new BABYLON.StandardMaterial("jGround", scene);
+    gMat.diffuseColor = new BABYLON.Color3(0.2, 0.65, 0.28);
+    ground.material = gMat;
+    stageMeshes.push(ground);
+
+    const wood = new BABYLON.StandardMaterial("wWood", scene);
+    wood.diffuseColor = new BABYLON.Color3(0.38, 0.24, 0.14);
+
+    const leaf = new BABYLON.StandardMaterial("lLeaf", scene);
+    leaf.diffuseColor = new BABYLON.Color3(0.18, 0.78, 0.32);
+
+    makeHighVoxelWalls(wood, leaf);
+
+    for (let i = 0; i < 20; i++) {
+      const fx = (Math.random() - 0.5) * (ARENA_W - 14);
+      const fz = (Math.random() - 0.5) * (ARENA_L - 18);
+      if (Math.hypot(fx, fz) < 10) continue;
+
+      const bush = BABYLON.MeshBuilder.CreateBox("Bush", { size: 2.6 }, scene);
+      bush.position.set(fx, 1.3, fz);
+      bush.material = leaf;
+      stageMeshes.push(bush);
+    }
+
+    boss = createBoss(2, "VERDANT STALKER", 400, new BABYLON.Color3(0.18, 0.55, 0.22));
+  }
+
+  function createBoss(type, name, hp, color) {
+    const root = new BABYLON.TransformNode("BossRoot", scene);
+    root.position.set(0, 0, -22);
+
+    const mat = new BABYLON.StandardMaterial("bMat", scene);
+    mat.diffuseColor = color;
+
+    const gold = new BABYLON.StandardMaterial("bGold", scene);
+    gold.diffuseColor = new BABYLON.Color3(1.0, 0.75, 0.1);
+
+    const body = BABYLON.MeshBuilder.CreateBox("bBody", { width: 4.8, height: 5.0, depth: 4.2 }, scene);
+    body.parent = root;
+    body.position.y = 3.6;
+    body.material = mat;
+
+    const crown = BABYLON.MeshBuilder.CreateBox("bCrown", { width: 3.2, height: 1.6, depth: 3.2 }, scene);
+    crown.parent = body;
+    crown.position.y = 3.2;
+    crown.material = gold;
+
+    return {
+      root, body, type, name,
+      speed: 6.5 + type * 1.5,
+      attackTimer: 1.2,
+      hp, maxHp: hp, radius: 3.4
+    };
+  }
+
+  function loadStage(idx) {
+    clearStage();
+    state.stage = idx % 3;
+    if (state.stage === 0) buildCastle();
+    else if (state.stage === 1) buildDesert();
+    else buildJungle();
+
+    state.bossHp = boss.hp;
+    state.maxBossHp = boss.maxHp;
+    updateUI();
+  }
+
+  function updateUI() {
+    const sEl = document.getElementById('hud-stage');
+    const scEl = document.getElementById('hud-score');
+    const pEl = document.getElementById('p-bar');
+    const bEl = document.getElementById('b-bar');
+
+    const names = ["STAGE 1: VOXEL COURTYARD", "STAGE 2: DESERT CANYON", "STAGE 3: JUNGLE CLEARING"];
+    if (sEl && boss) sEl.innerText = `${names[state.stage]} — ${boss.name}`;
+    if (scEl) scEl.innerText = `DEFEATED: ${state.score}`;
+    if (pEl) pEl.style.width = `${Math.max(0, (state.playerHp / state.maxHp) * 100)}%`;
+    if (bEl && boss) bEl.style.width = `${Math.max(0, (state.bossHp / state.maxBossHp) * 100)}%`;
+  }
+
+  // 6. Projectiles
+  function shoot(origin, dir, isPlayer = false, speed = 55) {
+    const box = BABYLON.MeshBuilder.CreateBox("Bullet", { size: 0.6 }, scene);
+    const mat = new BABYLON.StandardMaterial("bMat", scene);
+    mat.emissiveColor = isPlayer ? new BABYLON.Color3(0, 1, 1) : new BABYLON.Color3(1, 0.2, 0.1);
+    box.material = mat;
+    box.position.copyFrom(origin);
+
+    bullets.push({
+      mesh: box,
+      isPlayer,
+      dir: dir.normalize(),
+      speed,
+      life: 2.5
+    });
+
+    playSound(isPlayer ? 'fire' : 'enemy_fire');
+  }
+
+  function firePlayer() {
+    if (recoil > 0.05) return;
+    recoil = 0.35;
+    muzzleLight.isVisible = true;
+    setTimeout(() => { muzzleLight.isVisible = false; }, 40);
+
+    const fwd = camera.getForwardRay().direction;
+    const origin = camera.position.add(fwd.scale(1.2));
+    shoot(origin, fwd, true, 65);
+  }
+
+  // 7. Inputs
+  const keys = {};
+  window.addEventListener('keydown', (e) => {
+    keys[e.code] = true;
+    if (e.code === 'Space' && Math.abs(camera.position.y - 2.0) < 0.1) playerVy = 13.0;
+    if (e.key === 'Shift' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') firePlayer();
+  });
+  window.addEventListener('keyup', (e) => keys[e.code] = false);
+
+  canvas.addEventListener('click', () => {
+    if (!state.isMobile && !isPointerLocked) {
+      canvas.requestPointerLock = canvas.requestPointerLock || canvas.mozRequestPointerLock;
+      if (canvas.requestPointerLock) canvas.requestPointerLock();
+    }
+  });
+
+  document.addEventListener('pointerlockchange', () => {
+    isPointerLocked = (document.pointerLockElement === canvas);
+  });
+
+  canvas.addEventListener('pointerdown', (e) => {
+    if (e.button === 0 && !state.isMobile) firePlayer();
+  });
+
+  if (state.isMobile) {
+    document.getElementById('mobile-ui').style.display = 'block';
+    const base = document.getElementById('joy-base');
+    const stick = document.getElementById('joy-stick');
+    let tid = null, rect = null;
+
+    base.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      tid = e.changedTouches[0].identifier;
+      rect = base.getBoundingClientRect();
+    }, { passive: false });
+
+    window.addEventListener('touchmove', (e) => {
+      if (tid === null) return;
+      for (let t of e.changedTouches) {
+        if (t.identifier === tid) {
+          const dx = t.clientX - (rect.left + rect.width / 2);
+          const dy = t.clientY - (rect.top + rect.height / 2);
+          const dist = Math.min(48, Math.hypot(dx, dy));
+          const ang = Math.atan2(dy, dx);
+
+          stick.style.transform = `translate(calc(-50% + ${Math.cos(ang) * dist}px), calc(-50% + ${Math.sin(ang) * dist}px))`;
+          input.right = (Math.cos(ang) * dist) / 48;
+          input.forward = -(Math.sin(ang) * dist) / 48;
+        }
+      }
+    }, { passive: false });
+
+    const endTouch = (e) => {
+      for (let t of e.changedTouches) {
+        if (t.identifier === tid) {
+          tid = null;
+          stick.style.transform = 'translate(-50%, -50%)';
+          input.forward = 0; input.right = 0;
+        }
+      }
+    };
+    window.addEventListener('touchend', endTouch);
+    window.addEventListener('touchcancel', endTouch);
+
+    document.getElementById('btn-jump').addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      if (Math.abs(camera.position.y - 2.0) < 0.1) playerVy = 13.0;
+    });
+
+    document.getElementById('btn-fire').addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      firePlayer();
+    });
+  }
+
+  // 8. Main Loop
+  loadStage(0);
+
+  engine.runRenderLoop(() => {
+    const dt = Math.min(engine.getDeltaTime() / 1000, 0.1);
+
+    if (!state.isMobile) {
+      input.forward = (keys['KeyW'] ? 1 : 0) - (keys['KeyS'] ? 1 : 0);
+      input.right = (keys['KeyD'] ? 1 : 0) - (keys['KeyA'] ? 1 : 0);
+    }
+
+    // Move FPS Camera
+    const moveMag = Math.hypot(input.forward, input.right);
+    const fwd = camera.getForwardRay().direction;
+    fwd.y = 0; fwd.normalize();
+    const right = new BABYLON.Vector3(fwd.z, 0, -fwd.x);
+
+    if (moveMag > 0.05) {
+      const moveDir = fwd.scale(input.forward).add(right.scale(input.right)).normalize();
+      const nx = camera.position.x + moveDir.x * 16 * dt;
+      const nz = camera.position.z + moveDir.z * 16 * dt;
+
+      let blocked = false;
+      for (let b of boneObstacles) {
+        if (Math.hypot(nx - b.x, nz - b.z) < 1.6 + b.radius) {
+          if (camera.position.y < b.jumpH + 1.2) {
+            blocked = true; break;
+          }
+        }
+      }
+
+      if (!blocked) {
+        camera.position.x = nx;
+        camera.position.z = nz;
+      }
+
+      bob += dt * 10;
+      weaponNode.position.y = -0.32 + Math.sin(bob) * 0.02;
+    } else {
+      weaponNode.position.y = -0.32;
+    }
+
+    // Arena Bounds
+    camera.position.x = Math.max(-ARENA_W / 2 + 3, Math.min(ARENA_W / 2 - 3, camera.position.x));
+    camera.position.z = Math.max(-ARENA_L / 2 + 3, Math.min(ARENA_L / 2 - 3, camera.position.z));
+
+    // Jump Gravity
+    camera.position.y += playerVy * dt;
+    if (camera.position.y > 2.0) {
+      playerVy -= 32 * dt;
+    } else {
+      camera.position.y = 2.0;
+      playerVy = 0;
+    }
+
+    // Recoil
+    if (recoil > 0) {
+      weaponNode.position.z = 0.75 - recoil * 0.35;
+      recoil -= dt * 2.2;
+    } else {
+      weaponNode.position.z = 0.75;
+    }
+
+    // Boss AI
+    if (boss) {
+      const toP = camera.position.subtract(boss.root.position);
+      toP.y = 0;
+      const dist = toP.length();
+      toP.normalize();
+
+      boss.root.rotation.y = Math.atan2(toP.x, toP.z);
+      if (dist > 14) {
+        boss.root.position.x += toP.x * boss.speed * dt;
+        boss.root.position.z += toP.z * boss.speed * dt;
+      }
+
+      boss.attackTimer -= dt;
+      if (boss.attackTimer <= 0) {
+        const origin = boss.root.position.add(new BABYLON.Vector3(0, 3.2, 0));
+        shoot(origin, toP, false, 35);
+        boss.attackTimer = 1.2;
+      }
+    }
+
+    // Bullets
+    for (let i = bullets.length - 1; i >= 0; i--) {
+      const b = bullets[i];
+      b.mesh.position.addInPlace(b.dir.scale(b.speed * dt));
+      b.life -= dt;
+
+      if (Math.abs(b.mesh.position.x) > ARENA_W / 2 || Math.abs(b.mesh.position.z) > ARENA_L / 2 || b.life <= 0) {
+        b.mesh.dispose();
+        bullets.splice(i, 1);
+        continue;
+      }
+
+      // Hit Boss
+      if (b.isPlayer && boss) {
+        if (Math.hypot(b.mesh.position.x - boss.root.position.x, b.mesh.position.z - boss.root.position.z) < boss.radius) {
+          state.bossHp -= 16;
+          playSound('hit');
+          b.mesh.dispose();
+          bullets.splice(i, 1);
+
+          if (state.bossHp <= 0) {
+            state.score++;
+            loadStage(state.score);
+            camera.position.set(0, 2.0, 24);
+          }
+          updateUI();
+          continue;
+        }
+      }
+
+      // Hit Player
+      if (!b.isPlayer) {
+        if (Math.hypot(b.mesh.position.x - camera.position.x, b.mesh.position.z - camera.position.z) < 1.6) {
+          state.playerHp -= 14;
+          playSound('hit');
+          b.mesh.dispose();
+          bullets.splice(i, 1);
+
+          if (state.playerHp <= 0) {
+            state.playerHp = state.maxHp;
+            state.score = 0;
+            loadStage(0);
+            camera.position.set(0, 2.0, 24);
+          }
+          updateUI();
+          continue;
+        }
+      }
+    }
+
+    scene.render();
+  });
+
+  window.addEventListener('resize', () => engine.resize());
+});
+</script>
 </body>
 </html>
