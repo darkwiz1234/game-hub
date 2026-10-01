@@ -1,15 +1,15 @@
 // ============================================================================
-// SHOOTOUT ⚔️ — Babylon.js Complete Game Runtime (shootout.js)
+// SHOOTOUT ⚔️ — Babylon.js Game Runtime (shootout.js)
 // ============================================================================
 
 window.addEventListener('DOMContentLoaded', () => {
   const canvas = document.getElementById('renderCanvas');
   if (!canvas) {
-    console.error("Canvas element with id 'renderCanvas' was not found!");
+    console.error("Canvas element 'renderCanvas' not found!");
     return;
   }
 
-  // 1. Initialize Babylon.js Engine
+  // 1. Initialize Babylon.js 3D Engine
   const engine = new BABYLON.Engine(canvas, true, {
     preserveDrawingBuffer: true,
     stencil: true,
@@ -38,7 +38,11 @@ window.addEventListener('DOMContentLoaded', () => {
   let boneObstacles = [];
   let bullets = [];
 
-  // Viewmodel Weapon Rig
+  // Health Orb Drop System (Drops every 20-25 seconds)
+  let healthOrb = null;
+  let orbDropTimer = 22.0;
+
+  // FPS Viewmodel Rig
   let weaponRoot, muzzleFlash, recoil = 0;
   let walkBob = 0, playerVy = 0;
   let isPointerLocked = false;
@@ -77,6 +81,13 @@ window.addEventListener('DOMContentLoaded', () => {
       gain.gain.setValueAtTime(0.35, now);
       gain.gain.linearRampToValueAtTime(0, now + 0.14);
       osc.start(now); osc.stop(now + 0.14);
+    } else if (type === 'heal') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(320, now);
+      osc.frequency.exponentialRampToValueAtTime(860, now + 0.35);
+      gain.gain.setValueAtTime(0.35, now);
+      gain.gain.linearRampToValueAtTime(0, now + 0.35);
+      osc.start(now); osc.stop(now + 0.35);
     } else if (type === 'fanfare') {
       osc.type = 'sine';
       osc.frequency.setValueAtTime(320, now);
@@ -87,110 +98,19 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // ========================================================================
-  // ZERO-CRASH DOM OVERLAY (HUD, Crosshairs, Mobile Joysticks)
-  // ========================================================================
-  function setupDOMOverlay() {
-    let existing = document.getElementById('shootout-dom-overlay');
-    if (existing) existing.remove();
-
-    const overlay = document.createElement('div');
-    overlay.id = 'shootout-dom-overlay';
-    overlay.innerHTML = `
-      <style>
-        #so-crosshair {
-          position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-          width: 26px; height: 26px; pointer-events: none; z-index: 100;
-        }
-        #so-crosshair .ring {
-          position: absolute; inset: 0; border: 2px solid rgba(0, 240, 255, 0.85);
-          border-radius: 50%; box-shadow: 0 0 8px rgba(0,240,255,0.7);
-        }
-        #so-crosshair .dot {
-          position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-          width: 4px; height: 4px; background: #ffea00; border-radius: 50%;
-        }
-        #so-hud {
-          position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
-          width: 90%; max-width: 680px; z-index: 100; pointer-events: none;
-          font-family: 'Rajdhani', sans-serif; text-shadow: 0 2px 4px rgba(0,0,0,0.8);
-        }
-        #so-hud-header {
-          display: flex; justify-content: space-between; align-items: center;
-          font-family: 'Orbitron', monospace, sans-serif; font-size: 13px; font-weight: 900;
-          margin-bottom: 8px; letter-spacing: 1.5px;
-        }
-        #so-stage-name { color: #ffea00; text-shadow: 0 0 10px rgba(255, 234, 0, 0.7); }
-        #so-score-text { color: #ffffff; text-shadow: 0 0 10px rgba(0, 240, 255, 0.7); }
-        .so-bar-box {
-          background: rgba(10, 15, 30, 0.75); border: 2px solid rgba(255, 255, 255, 0.85);
-          height: 18px; border-radius: 6px; margin-bottom: 6px; overflow: hidden;
-          box-shadow: 0 4px 15px rgba(0,0,0,0.4);
-        }
-        #so-player-bar { height: 100%; width: 100%; background: linear-gradient(90deg, #00ff88, #00f0ff); transition: width 0.1s linear; }
-        #so-boss-bar { height: 100%; width: 100%; background: linear-gradient(90deg, #ff0055, #ffaa00); transition: width 0.1s linear; }
-        #so-hit-flash {
-          position: fixed; inset: 0; background: rgba(255, 0, 40, 0.35);
-          opacity: 0; pointer-events: none; transition: opacity 0.08s ease; z-index: 150;
-        }
-        #so-fade-curtain {
-          position: fixed; inset: 0; background: #000;
-          opacity: 0; pointer-events: none; transition: opacity 0.5s ease; z-index: 200;
-        }
-        #so-mobile-ui { display: none; position: fixed; inset: 0; pointer-events: none; z-index: 120; }
-        #so-joy-base {
-          position: absolute; bottom: 25px; left: 25px; width: 130px; height: 130px; border-radius: 50%;
-          border: 3px solid rgba(255, 234, 0, 0.7); background: radial-gradient(circle, rgba(0,240,255,0.2), rgba(10,15,30,0.6));
-          pointer-events: auto; touch-action: none;
-        }
-        #so-joy-stick {
-          position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-          width: 50px; height: 50px; border-radius: 50%; background: #ffea00; box-shadow: 0 0 12px #ffaa00;
-          pointer-events: none;
-        }
-        .so-touch-btn {
-          position: absolute; border: 2px solid #fff; font-family: 'Orbitron', sans-serif;
-          font-weight: 900; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-          pointer-events: auto; color: #fff;
-        }
-        #so-btn-jump { bottom: 125px; right: 30px; width: 62px; height: 62px; background: rgba(0, 255, 170, 0.35); border-color: #00ffaa; }
-        #so-btn-fire { bottom: 30px; right: 30px; width: 80px; height: 80px; background: rgba(255, 0, 85, 0.4); border-color: #ff0055; }
-      </style>
-      <div id="so-hit-flash"></div>
-      <div id="so-fade-curtain"></div>
-      <div id="so-crosshair"><div class="ring"></div><div class="dot"></div></div>
-      <div id="so-hud">
-        <div id="so-hud-header">
-          <span id="so-stage-name">STAGE 1: CITADEL COURTYARD</span>
-          <span id="so-score-text">CONQUERED: 0</span>
-        </div>
-        <div class="so-bar-box"><div id="so-player-bar"></div></div>
-        <div class="so-bar-box"><div id="so-boss-bar"></div></div>
-      </div>
-      <div id="so-mobile-ui">
-        <div id="so-joy-base"><div id="so-joy-stick"></div></div>
-        <div id="so-btn-jump" class="so-touch-btn">JUMP</div>
-        <div id="so-btn-fire" class="so-touch-btn">FIRE</div>
-      </div>
-    `;
-    document.body.appendChild(overlay);
-  }
-
-  function updateHUD() {
-    const sEl = document.getElementById('so-stage-name');
-    const scEl = document.getElementById('so-score-text');
-    const pEl = document.getElementById('so-player-bar');
-    const bEl = document.getElementById('so-boss-bar');
-
-    const names = ["STAGE 1: CITADEL COURTYARD 🏰", "STAGE 2: DESERT CANYON 🏜️", "STAGE 3: JUNGLE CLEARING 🌴"];
-    if (sEl && boss) sEl.innerText = `${names[state.stage]} — ${boss.name}`;
-    if (scEl) scEl.innerText = `CONQUERED: ${state.score}`;
-    if (pEl) pEl.style.width = `${Math.max(0, (state.playerHp / state.maxHp) * 100)}%`;
-    if (bEl && boss) bEl.style.width = `${Math.max(0, (state.bossHp / state.maxBossHp) * 100)}%`;
+  function showToast(msg, color = "#00ffaa") {
+    const t = document.getElementById('toast-banner');
+    if (!t) return;
+    t.innerText = msg;
+    t.style.color = color;
+    t.style.borderColor = color;
+    t.style.textShadow = `0 0 10px ${color}`;
+    t.style.opacity = '1';
+    setTimeout(() => { t.style.opacity = '0'; }, 2000);
   }
 
   // ========================================================================
-  // PROCEDURAL TEXTURE GENERATOR (Dynamic Canvas to Texture)
+  // PROCEDURAL HIGH-RESOLUTION TEXTURE ENGINE
   // ========================================================================
   function createProceduralTexture(type) {
     const c = document.createElement('canvas');
@@ -246,7 +166,7 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   // ========================================================================
-  // SCENE, SKY, LIGHTS & SHADOW ENGINE
+  // SCENE, SKY, DUAL LIGHTS & SHADOW ENGINE
   // ========================================================================
   scene = new BABYLON.Scene(engine);
   scene.clearColor = new BABYLON.Color4(0.38, 0.74, 1.0, 1.0);
@@ -255,7 +175,7 @@ window.addEventListener('DOMContentLoaded', () => {
   scene.fogDensity = 0.005;
   scene.fogColor = new BABYLON.Color3(0.38, 0.74, 1.0);
 
-  // FPS Eye Camera
+  // FPS Camera at eye level
   camera = new BABYLON.UniversalCamera("FpsCam", new BABYLON.Vector3(0, 2.0, 36), scene);
   camera.setTarget(new BABYLON.Vector3(0, 2.0, 0));
   camera.speed = 0;
@@ -264,7 +184,7 @@ window.addEventListener('DOMContentLoaded', () => {
   camera.fov = 1.15;
   camera.attachControl(canvas, true);
 
-  // Dual Lights: Natural Sunlight + Ambient Sky Fill
+  // Natural Sunlight & Ambient Skylight
   fillLight = new BABYLON.HemisphericLight("FillLight", new BABYLON.Vector3(0, 1, 0), scene);
   fillLight.intensity = 0.95;
   fillLight.diffuse = new BABYLON.Color3(1.0, 0.98, 0.94);
@@ -280,7 +200,7 @@ window.addEventListener('DOMContentLoaded', () => {
   shadowGen.blurKernel = 16;
   shadowGen.darkness = 0.45;
 
-  // Stylized 3D Clouds in Sky
+  // Stylized 3D Clouds in the Sky
   const cloudMat = new BABYLON.StandardMaterial("CloudMat", scene);
   cloudMat.diffuseColor = new BABYLON.Color3(1, 1, 1);
   cloudMat.emissiveColor = new BABYLON.Color3(0.85, 0.9, 0.95);
@@ -343,13 +263,52 @@ window.addEventListener('DOMContentLoaded', () => {
   muzzleFlash.isVisible = false;
 
   // ========================================================================
-  // GROUNDED COLOSSEUM WALLS (Flush with Turf at y = 0.0)
+  // HEALTH ORBS SYSTEM (Spawns every 20-25 seconds)
+  // ========================================================================
+  function spawnHealthOrb() {
+    if (healthOrb && healthOrb.root) {
+      healthOrb.root.dispose();
+      healthOrb = null;
+    }
+
+    const root = new BABYLON.TransformNode("HealthOrbRoot", scene);
+    const orbSphere = BABYLON.MeshBuilder.CreateSphere("OrbSphere", { diameter: 1.6 }, scene);
+    orbSphere.parent = root;
+
+    const orbMat = new BABYLON.StandardMaterial("OrbMat", scene);
+    orbMat.emissiveColor = new BABYLON.Color3(0.0, 1.0, 0.6);
+    orbSphere.material = orbMat;
+
+    const haloRing = BABYLON.MeshBuilder.CreateTorus("OrbHalo", { diameter: 2.4, thickness: 0.2, tessellation: 20 }, scene);
+    haloRing.parent = root;
+    const haloMat = new BABYLON.StandardMaterial("HaloMat", scene);
+    haloMat.emissiveColor = new BABYLON.Color3(0.0, 0.9, 1.0);
+    haloRing.material = haloMat;
+
+    // Place randomly in the arena
+    const rx = (Math.random() - 0.5) * (ARENA_W - 24);
+    const rz = (Math.random() - 0.5) * (ARENA_L - 24);
+    root.position.set(rx, 1.8, rz);
+
+    healthOrb = { root, orbSphere, haloRing, radius: 2.2, animTime: 0 };
+    showToast("VITALITY ORB DROPPED! +25% HP", "#00ffaa");
+  }
+
+  // ========================================================================
+  // GROUNDED COLOSSEUM WALLS (Anchored firmly at y = 0.0)
   // ========================================================================
   function clearCurrentStage() {
     stageMeshes.forEach(m => m.dispose());
     stageMeshes = [];
     boneObstacles = [];
-    if (boss && boss.root) { boss.root.dispose(); boss = null; }
+    if (healthOrb && healthOrb.root) {
+      healthOrb.root.dispose();
+      healthOrb = null;
+    }
+    if (boss && boss.root) {
+      boss.root.dispose();
+      boss = null;
+    }
   }
 
   function buildGroundedColosseumWalls(wallTex, trimColor, foundationColor) {
@@ -450,6 +409,23 @@ window.addEventListener('DOMContentLoaded', () => {
     stoneTex.uScale = 8; stoneTex.vScale = 4;
     buildGroundedColosseumWalls(stoneTex, new BABYLON.Color3(0.92, 0.2, 0.18), new BABYLON.Color3(0.2, 0.22, 0.28));
 
+    // Cover props: Castle stone pillars
+    const pillarMat = new BABYLON.PBRMaterial("PillarMat", scene);
+    pillarMat.albedoColor = new BABYLON.Color3(0.7, 0.75, 0.85);
+    pillarMat.roughness = 0.5;
+
+    for (let i = 0; i < 8; i++) {
+      const ang = (i / 8) * Math.PI * 2;
+      const px = Math.cos(ang) * 28;
+      const pz = Math.sin(ang) * 28;
+      const pillar = BABYLON.MeshBuilder.CreateBox("Pillar", { width: 3.2, height: 5.5, depth: 3.2 }, scene);
+      pillar.position.set(px, 2.75, pz);
+      pillar.material = pillarMat;
+      shadowGen.addShadowCaster(pillar);
+      stageMeshes.push(pillar);
+      boneObstacles.push({ x: px, z: pz, radius: 2.2, jumpH: 6.0 });
+    }
+
     boss = createGroundedBoss(0, "CITADEL GOLEM", 260, new BABYLON.Color3(0.55, 0.62, 0.75));
   }
 
@@ -510,6 +486,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     buildGroundedColosseumWalls(mossTex, new BABYLON.Color3(0.2, 0.78, 0.32), new BABYLON.Color3(0.12, 0.35, 0.16));
 
+    // Foliage Bushes (Visual concealment only)
     const bushMat = new BABYLON.PBRMaterial("bushMat", scene);
     bushMat.albedoColor = new BABYLON.Color3(0.18, 0.75, 0.3);
     bushMat.roughness = 0.7;
@@ -535,7 +512,7 @@ window.addEventListener('DOMContentLoaded', () => {
   // ========================================================================
   function createGroundedBoss(type, name, hp, color) {
     const root = new BABYLON.TransformNode("BossRoot", scene);
-    root.position.set(0, 0, 0); // Exact center of the arena
+    root.position.set(0, 0, 0); // Center of the arena
 
     const bMat = new BABYLON.PBRMaterial("bMat", scene);
     bMat.albedoColor = color;
@@ -601,6 +578,21 @@ window.addEventListener('DOMContentLoaded', () => {
     updateHUD();
   }
 
+  function updateHUD() {
+    const sEl = document.getElementById('hud-stage');
+    const scEl = document.getElementById('hud-score');
+    const pEl = document.getElementById('p-bar');
+    const bEl = document.getElementById('b-bar');
+    const bLabel = document.getElementById('boss-label');
+
+    const names = ["STAGE 1: CITADEL COURTYARD 🏰", "STAGE 2: DESERT CANYON 🏜️", "STAGE 3: JUNGLE CLEARING 🌴"];
+    if (sEl && boss) sEl.innerText = `${names[state.stage]}`;
+    if (scEl) scEl.innerText = `CONQUERED: ${state.score}`;
+    if (bLabel && boss) bLabel.innerText = `${boss.name}`;
+    if (pEl) pEl.style.width = `${Math.max(0, (state.playerHp / state.maxHp) * 100)}%`;
+    if (bEl && boss) bEl.style.width = `${Math.max(0, (state.bossHp / state.maxBossHp) * 100)}%`;
+  }
+
   // ========================================================================
   // PROJECTILE SYSTEM
   // ========================================================================
@@ -634,110 +626,104 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   // ========================================================================
-  // CONTROLS INTERFACING (Desktop & Mobile)
+  // CONTROLS INTERFACING
   // ========================================================================
-  function setupControls() {
-    const keys = {};
-    window.addEventListener('keydown', (e) => {
-      keys[e.code] = true;
-      if (e.code === 'Space' && Math.abs(camera.position.y - 2.0) < 0.1) playerVy = 13.0;
-      if (e.key === 'Shift' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') playerFire();
-    });
-    window.addEventListener('keyup', (e) => keys[e.code] = false);
+  const keys = {};
+  window.addEventListener('keydown', (e) => {
+    keys[e.code] = true;
+    if (e.code === 'Space' && Math.abs(camera.position.y - 2.0) < 0.1) playerVy = 13.0;
+    if (e.key === 'Shift' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') playerFire();
+  });
+  window.addEventListener('keyup', (e) => keys[e.code] = false);
 
-    canvas.addEventListener('click', () => {
-      if (!state.isMobile && !isPointerLocked) {
-        canvas.requestPointerLock = canvas.requestPointerLock || canvas.mozRequestPointerLock;
-        if (canvas.requestPointerLock) canvas.requestPointerLock();
-      }
-    });
+  canvas.addEventListener('click', () => {
+    if (!state.isMobile && !isPointerLocked) {
+      canvas.requestPointerLock = canvas.requestPointerLock || canvas.mozRequestPointerLock;
+      if (canvas.requestPointerLock) canvas.requestPointerLock();
+    }
+  });
 
-    document.addEventListener('pointerlockchange', () => {
-      isPointerLocked = (document.pointerLockElement === canvas);
-    });
+  document.addEventListener('pointerlockchange', () => {
+    isPointerLocked = (document.pointerLockElement === canvas);
+  });
 
-    canvas.addEventListener('pointerdown', (e) => {
-      if (e.button === 0 && !state.isMobile) playerFire();
-    });
+  canvas.addEventListener('pointerdown', (e) => {
+    if (e.button === 0 && !state.isMobile) playerFire();
+  });
 
-    scene.registerBeforeRender(() => {
-      if (!state.isMobile) {
-        input.forward = (keys['KeyW'] ? 1 : 0) - (keys['KeyS'] ? 1 : 0);
-        input.right = (keys['KeyD'] ? 1 : 0) - (keys['KeyA'] ? 1 : 0);
-      }
-    });
+  if (state.isMobile) {
+    const mobUI = document.getElementById('mobile-ui');
+    if (mobUI) mobUI.style.display = 'block';
 
-    if (state.isMobile) {
-      const mobUI = document.getElementById('so-mobile-ui');
-      if (mobUI) mobUI.style.display = 'block';
+    const base = document.getElementById('joy-base');
+    const stick = document.getElementById('joy-stick');
+    let tid = null, rect = null;
 
-      const base = document.getElementById('so-joy-base');
-      const stick = document.getElementById('so-joy-stick');
-      let tid = null, rect = null;
+    if (base) {
+      base.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        tid = e.changedTouches[0].identifier;
+        rect = base.getBoundingClientRect();
+      }, { passive: false });
 
-      if (base) {
-        base.addEventListener('touchstart', (e) => {
-          e.preventDefault();
-          tid = e.changedTouches[0].identifier;
-          rect = base.getBoundingClientRect();
-        }, { passive: false });
+      window.addEventListener('touchmove', (e) => {
+        if (tid === null) return;
+        for (let t of e.changedTouches) {
+          if (t.identifier === tid) {
+            const dx = t.clientX - (rect.left + rect.width / 2);
+            const dy = t.clientY - (rect.top + rect.height / 2);
+            const dist = Math.min(48, Math.hypot(dx, dy));
+            const ang = Math.atan2(dy, dx);
 
-        window.addEventListener('touchmove', (e) => {
-          if (tid === null) return;
-          for (let t of e.changedTouches) {
-            if (t.identifier === tid) {
-              const dx = t.clientX - (rect.left + rect.width / 2);
-              const dy = t.clientY - (rect.top + rect.height / 2);
-              const dist = Math.min(48, Math.hypot(dx, dy));
-              const ang = Math.atan2(dy, dx);
-
-              stick.style.transform = `translate(calc(-50% + ${Math.cos(ang) * dist}px), calc(-50% + ${Math.sin(ang) * dist}px))`;
-              input.right = (Math.cos(ang) * dist) / 48;
-              input.forward = -(Math.sin(ang) * dist) / 48;
-            }
+            stick.style.transform = `translate(calc(-50% + ${Math.cos(ang) * dist}px), calc(-50% + ${Math.sin(ang) * dist}px))`;
+            input.right = (Math.cos(ang) * dist) / 48;
+            input.forward = -(Math.sin(ang) * dist) / 48;
           }
-        }, { passive: false });
+        }
+      }, { passive: false });
 
-        const endTouch = (e) => {
-          for (let t of e.changedTouches) {
-            if (t.identifier === tid) {
-              tid = null;
-              stick.style.transform = 'translate(-50%, -50%)';
-              input.forward = 0; input.right = 0;
-            }
+      const endTouch = (e) => {
+        for (let t of e.changedTouches) {
+          if (t.identifier === tid) {
+            tid = null;
+            stick.style.transform = 'translate(-50%, -50%)';
+            input.forward = 0; input.right = 0;
           }
-        };
-        window.addEventListener('touchend', endTouch);
-        window.addEventListener('touchcancel', endTouch);
-      }
+        }
+      };
+      window.addEventListener('touchend', endTouch);
+      window.addEventListener('touchcancel', endTouch);
+    }
 
-      const btnJump = document.getElementById('so-btn-jump');
-      if (btnJump) {
-        btnJump.addEventListener('touchstart', (e) => {
-          e.preventDefault();
-          if (Math.abs(camera.position.y - 2.0) < 0.1) playerVy = 13.0;
-        });
-      }
+    const btnJump = document.getElementById('btn-jump');
+    if (btnJump) {
+      btnJump.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        if (Math.abs(camera.position.y - 2.0) < 0.1) playerVy = 13.0;
+      });
+    }
 
-      const btnFire = document.getElementById('so-btn-fire');
-      if (btnFire) {
-        btnFire.addEventListener('touchstart', (e) => {
-          e.preventDefault();
-          playerFire();
-        });
-      }
+    const btnFire = document.getElementById('btn-fire');
+    if (btnFire) {
+      btnFire.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        playerFire();
+      });
     }
   }
 
   // ========================================================================
   // RUNTIME LOOP & CIRCLING BOSS COMBAT
   // ========================================================================
-  setupDOMOverlay();
-  setupControls();
   loadStage(0);
 
   engine.runRenderLoop(() => {
     const dt = Math.min(engine.getDeltaTime() / 1000, 0.1);
+
+    if (!state.isMobile) {
+      input.forward = (keys['KeyW'] ? 1 : 0) - (keys['KeyS'] ? 1 : 0);
+      input.right = (keys['KeyD'] ? 1 : 0) - (keys['KeyA'] ? 1 : 0);
+    }
 
     // Kinematics Movement
     const moveMag = Math.hypot(input.forward, input.right);
@@ -796,6 +782,31 @@ window.addEventListener('DOMContentLoaded', () => {
     } else {
       weaponRoot.position.z = 0.78;
       weaponRoot.rotation.x = 0;
+    }
+
+    // ======================================================================
+    // HEALTH ORB CYCLE: Spawns every 20-25 seconds & Collision
+    // ======================================================================
+    orbDropTimer -= dt;
+    if (orbDropTimer <= 0) {
+      spawnHealthOrb();
+      orbDropTimer = 22.0 + Math.random() * 3.0; // 22-25 seconds interval
+    }
+
+    if (healthOrb && healthOrb.root) {
+      healthOrb.animTime += dt;
+      healthOrb.root.position.y = 1.8 + Math.sin(healthOrb.animTime * 3) * 0.4;
+      healthOrb.haloRing.rotation.z += dt * 2.5;
+
+      const distToOrb = Math.hypot(camera.position.x - healthOrb.root.position.x, camera.position.z - healthOrb.root.position.z);
+      if (distToOrb < healthOrb.radius + 1.2) {
+        state.playerHp = Math.min(state.maxHp, state.playerHp + 25);
+        playSound('heal');
+        showToast("+25% HEALTH RESTORED!", "#00ff88");
+        healthOrb.root.dispose();
+        healthOrb = null;
+        updateHUD();
+      }
     }
 
     // ======================================================================
@@ -879,7 +890,7 @@ window.addEventListener('DOMContentLoaded', () => {
           if (state.bossHp <= 0) {
             state.score++;
             playSound('fanfare');
-            const fade = document.getElementById('so-fade-curtain');
+            const fade = document.getElementById('stage-fade');
             if (fade) fade.style.opacity = '1';
             state.isTransitioning = true;
             setTimeout(() => {
@@ -902,7 +913,7 @@ window.addEventListener('DOMContentLoaded', () => {
           b.mesh.dispose();
           bullets.splice(i, 1);
 
-          const flash = document.getElementById('so-hit-flash');
+          const flash = document.getElementById('hit-flash');
           if (flash) {
             flash.style.opacity = '1';
             setTimeout(() => flash.style.opacity = '0', 80);
