@@ -19,7 +19,7 @@
             width: 100%;
             height: 100%;
             overflow: hidden;
-            background: #38b6ff;
+            background: #2a88e6;
             font-family: 'Rajdhani', sans-serif;
             color: #ffffff;
         }
@@ -157,7 +157,27 @@
             z-index: 50;
         }
 
-        /* Notification Toast (Health orb drops / pickup) */
+        /* Ladder Prompt */
+        #ladder-hint {
+            position: fixed;
+            bottom: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 13px;
+            font-weight: 900;
+            color: #ffea00;
+            background: rgba(10, 15, 30, 0.8);
+            border: 2px solid #ffea00;
+            padding: 6px 18px;
+            border-radius: 20px;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            pointer-events: none;
+            z-index: 25;
+        }
+
+        /* Notification Toast */
         #toast-banner {
             position: fixed;
             top: 100px;
@@ -244,7 +264,7 @@
             border-color: #ff0055;
         }
     </style>
-    <!-- Babylon.js Core Engine -->
+    <!-- Babylon.js Core Engine CDN -->
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
 </head>
 <body>
@@ -252,6 +272,7 @@
     <div id="hit-flash"></div>
     <div id="stage-fade"></div>
     <div id="toast-banner">VITALITY ORB SPAWNED!</div>
+    <div id="ladder-hint">PRESS [W] OR [SPACE] TO CLIMB LADDER</div>
     <div id="reticle"><div class="ring"></div><div class="dot"></div></div>
 
     <div id="hud">
@@ -277,7 +298,6 @@
 
     <canvas id="renderCanvas"></canvas>
 
-    <!-- Connects to external game runtime -->
     <script src="shootout.js"></script>
 </body>
 </html>

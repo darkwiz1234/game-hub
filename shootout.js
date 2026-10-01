@@ -1,5 +1,5 @@
 // ============================================================================
-// SHOOTOUT ⚔️ — Babylon.js Complete Game Runtime (shootout.js)
+// SHOOTOUT ⚔️ — Babylon.js Game Runtime (shootout.js)
 // ============================================================================
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -9,7 +9,7 @@ window.addEventListener('DOMContentLoaded', () => {
     return;
   }
 
-  // 1. Initialize Babylon.js 3D Engine
+  // 1. Initialize Babylon Engine
   const engine = new BABYLON.Engine(canvas, true, {
     preserveDrawingBuffer: true,
     stencil: true,
@@ -35,10 +35,11 @@ window.addEventListener('DOMContentLoaded', () => {
   let scene, camera, sun, fillLight, shadowGen;
   let boss = null;
   let stageMeshes = [];
-  let coverObstacles = [];
+  let solidObstacles = []; // Solid collision meshes (block movement & 100% block bullets)
+  let ladders = [];        // Climbable ladder zones
   let bullets = [];
 
-  // Health Orb Drop System (20-25s interval)
+  // Health Orb Drop (20-25 seconds)
   let healthOrb = null;
   let orbDropTimer = 22.0;
 
@@ -46,10 +47,11 @@ window.addEventListener('DOMContentLoaded', () => {
   let weaponRoot, muzzleFlash, recoil = 0;
   let walkBob = 0, playerVy = 0;
   let isPointerLocked = false;
+  let isClimbing = false;
   const input = { forward: 0, right: 0 };
 
   // ========================================================================
-  // PROCEDURAL AUDIO SYNTHESIZER (Web Audio API)
+  // PROCEDURAL AUDIO SYNTHESIZER
   // ========================================================================
   const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   function playSound(type) {
@@ -110,54 +112,56 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   // ========================================================================
-  // PROCEDURAL HIGH-RESOLUTION TEXTURE GENERATOR
+  // FAIL-PROOF PROCEDURAL TEXTURE GENERATION
   // ========================================================================
   function createProceduralTexture(type) {
     const c = document.createElement('canvas');
     c.width = 512; c.height = 512;
     const ctx = c.getContext('2d');
 
-    if (type === 'castle-stone') {
-      ctx.fillStyle = '#dde3ea'; ctx.fillRect(0, 0, 512, 512);
-      ctx.strokeStyle = '#7c8899'; ctx.lineWidth = 8;
+    if (type === 'castle-turf') {
+      ctx.fillStyle = '#56b820'; ctx.fillRect(0, 0, 512, 512);
+      ctx.strokeStyle = '#489e18'; ctx.lineWidth = 12;
+      for (let y = 0; y < 512; y += 64) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(512, y); ctx.stroke();
+      }
+      for (let i = 0; i < 600; i++) {
+        ctx.fillStyle = Math.random() > 0.5 ? '#6ad627' : '#3f8c14';
+        ctx.fillRect(Math.random() * 512, Math.random() * 512, 4, 10);
+      }
+    } else if (type === 'castle-stone') {
+      ctx.fillStyle = '#d5dbe4'; ctx.fillRect(0, 0, 512, 512);
+      ctx.strokeStyle = '#758294'; ctx.lineWidth = 8;
       const rows = 8, cols = 4;
       const rh = 512 / rows, cw = 512 / cols;
       for (let r = 0; r < rows; r++) {
         const offset = (r % 2) * (cw / 2);
         for (let col = -1; col <= cols; col++) {
           ctx.strokeRect(col * cw + offset, r * rh, cw, rh);
-          for (let p = 0; p < 6; p++) {
-            ctx.fillStyle = Math.random() > 0.5 ? '#b8c4d4' : '#f0f5fc';
-            ctx.fillRect(col * cw + offset + Math.random() * (cw - 14), r * rh + Math.random() * (rh - 14), 14, 10);
+          for (let p = 0; p < 5; p++) {
+            ctx.fillStyle = Math.random() > 0.5 ? '#b8c4d4' : '#eef4fc';
+            ctx.fillRect(col * cw + offset + Math.random() * (cw - 12), r * rh + Math.random() * (rh - 12), 12, 10);
           }
         }
       }
-    } else if (type === 'turf-grass') {
-      ctx.fillStyle = '#65c42a'; ctx.fillRect(0, 0, 512, 512);
-      for (let i = 0; i < 750; i++) {
-        ctx.fillStyle = Math.random() > 0.5 ? '#80de3e' : '#4fa81f';
-        ctx.fillRect(Math.random() * 512, Math.random() * 512, 4, 12);
-      }
-      ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 4;
-      ctx.strokeRect(0, 0, 512, 512);
-    } else if (type === 'desert-sand') {
-      ctx.fillStyle = '#e8ad46'; ctx.fillRect(0, 0, 512, 512);
-      ctx.fillStyle = '#d49633';
-      for (let i = 0; i < 1200; i++) ctx.fillRect(Math.random() * 512, Math.random() * 512, 3, 3);
-      ctx.strokeStyle = 'rgba(255, 230, 160, 0.4)'; ctx.lineWidth = 14;
-      ctx.beginPath();
-      ctx.moveTo(0, 120); ctx.bezierCurveTo(180, 180, 320, 60, 512, 140);
-      ctx.stroke();
-    } else if (type === 'city-asphalt') {
+    } else if (type === 'military-sand') {
+      ctx.fillStyle = '#d9a74a'; ctx.fillRect(0, 0, 512, 512);
+      ctx.fillStyle = '#c79438';
+      for (let i = 0; i < 1400; i++) ctx.fillRect(Math.random() * 512, Math.random() * 512, 3, 3);
+      ctx.strokeStyle = '#b8852d'; ctx.lineWidth = 14;
+      ctx.beginPath(); ctx.moveTo(0, 150); ctx.bezierCurveTo(150, 220, 350, 80, 512, 160); ctx.stroke();
+    } else if (type === 'city-road') {
       ctx.fillStyle = '#22252a'; ctx.fillRect(0, 0, 512, 512);
-      ctx.fillStyle = '#2a2e36';
-      for (let i = 0; i < 1500; i++) ctx.fillRect(Math.random() * 512, Math.random() * 512, 2, 2);
-      // Road markings (yellow dashed line & crosswalk zebra stripes)
-      ctx.strokeStyle = '#f1c40f'; ctx.lineWidth = 10; ctx.setLineDash([40, 30]);
-      ctx.beginPath(); ctx.moveTo(0, 256); ctx.lineTo(512, 256); ctx.stroke();
-      ctx.setLineDash([]);
-      ctx.fillStyle = '#ecf0f1';
-      for (let x = 30; x < 512; x += 55) ctx.fillRect(x, 400, 28, 90);
+      ctx.fillStyle = '#2d323b';
+      for (let i = 0; i < 1600; i++) ctx.fillRect(Math.random() * 512, Math.random() * 512, 2, 2);
+      // Double solid yellow line
+      ctx.strokeStyle = '#f1c40f'; ctx.lineWidth = 6;
+      ctx.beginPath(); ctx.moveTo(0, 250); ctx.lineTo(512, 250); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, 262); ctx.lineTo(512, 262); ctx.stroke();
+      // White boundary curbs
+      ctx.strokeStyle = '#ecf0f1'; ctx.lineWidth = 12;
+      ctx.beginPath(); ctx.moveTo(0, 10); ctx.lineTo(512, 10); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, 502); ctx.lineTo(512, 502); ctx.stroke();
     }
 
     const tex = new BABYLON.DynamicTexture("pTex_" + type, c, scene);
@@ -166,16 +170,12 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   // ========================================================================
-  // SCENE, SKY, DUAL LIGHTS & SHADOW ENGINE
+  // SCENE, SKYBOX, LIGHTING & FPS CAMERA
   // ========================================================================
   scene = new BABYLON.Scene(engine);
-  scene.clearColor = new BABYLON.Color4(0.38, 0.74, 1.0, 1.0);
+  scene.clearColor = new BABYLON.Color4(0.35, 0.72, 1.0, 1.0);
 
-  scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
-  scene.fogDensity = 0.005;
-  scene.fogColor = new BABYLON.Color3(0.38, 0.74, 1.0);
-
-  // FPS Camera at eye level
+  // FPS Eye Camera
   camera = new BABYLON.UniversalCamera("FpsCam", new BABYLON.Vector3(0, 2.0, 36), scene);
   camera.setTarget(new BABYLON.Vector3(0, 2.0, 0));
   camera.speed = 0;
@@ -184,74 +184,67 @@ window.addEventListener('DOMContentLoaded', () => {
   camera.fov = 1.15;
   camera.attachControl(canvas, true);
 
-  // Natural Sunlight & Ambient Skylight
+  // Sunlight and Ambient Fill
   fillLight = new BABYLON.HemisphericLight("FillLight", new BABYLON.Vector3(0, 1, 0), scene);
   fillLight.intensity = 0.95;
-  fillLight.diffuse = new BABYLON.Color3(1.0, 0.98, 0.94);
-  fillLight.groundColor = new BABYLON.Color3(0.45, 0.55, 0.35);
+  fillLight.diffuse = new BABYLON.Color3(1.0, 0.98, 0.92);
+  fillLight.groundColor = new BABYLON.Color3(0.4, 0.45, 0.35);
 
   sun = new BABYLON.DirectionalLight("Sun", new BABYLON.Vector3(-0.6, -1.3, -0.7), scene);
   sun.position = new BABYLON.Vector3(40, 80, 50);
   sun.intensity = 1.35;
 
-  // Real-Time Contact Shadow Generator
   shadowGen = new BABYLON.ShadowGenerator(1024, sun);
   shadowGen.useBlurExponentialShadowMap = true;
   shadowGen.blurKernel = 16;
   shadowGen.darkness = 0.45;
 
-  // Stylized 3D Clouds in the Sky
+  // 3D Fluffy Clouds
   const cloudMat = new BABYLON.StandardMaterial("CloudMat", scene);
   cloudMat.diffuseColor = new BABYLON.Color3(1, 1, 1);
-  cloudMat.emissiveColor = new BABYLON.Color3(0.85, 0.9, 0.95);
+  cloudMat.emissiveColor = new BABYLON.Color3(0.9, 0.94, 1.0);
 
-  for (let c = 0; c < 12; c++) {
+  for (let c = 0; c < 14; c++) {
     const cloudRoot = new BABYLON.TransformNode("Cloud", scene);
-    cloudRoot.position.set(
-      (Math.random() - 0.5) * 160,
-      36 + Math.random() * 8,
-      (Math.random() - 0.5) * 160
-    );
+    cloudRoot.position.set((Math.random() - 0.5) * 180, 38 + Math.random() * 8, (Math.random() - 0.5) * 180);
     for (let p = 0; p < 4; p++) {
-      const part = BABYLON.MeshBuilder.CreateSphere("CPart", { diameter: 7 + Math.random() * 4 }, scene);
+      const part = BABYLON.MeshBuilder.CreateSphere("CPart", { diameter: 8 + Math.random() * 5 }, scene);
       part.parent = cloudRoot;
-      part.position.set((p - 1.5) * 4, 0, (Math.random() - 0.5) * 3);
+      part.position.set((p - 1.5) * 4.5, 0, (Math.random() - 0.5) * 3.5);
       part.material = cloudMat;
     }
   }
 
   // ========================================================================
-  // FIRST PERSON VIEWMODEL BLASTER RIG
+  // FIRST PERSON VIEWMODEL GUN (Attached directly to Camera)
   // ========================================================================
   weaponRoot = new BABYLON.TransformNode("WeaponRoot", scene);
   weaponRoot.parent = camera;
   weaponRoot.position.set(0.4, -0.32, 0.78);
 
-  const matPbrMetal = new BABYLON.PBRMaterial("wMetal", scene);
-  matPbrMetal.albedoColor = new BABYLON.Color3(0.18, 0.24, 0.35);
-  matPbrMetal.metallic = 0.85;
-  matPbrMetal.roughness = 0.25;
+  const matGunMetal = new BABYLON.StandardMaterial("gMetal", scene);
+  matGunMetal.diffuseColor = new BABYLON.Color3(0.18, 0.24, 0.35);
+  matGunMetal.specularColor = new BABYLON.Color3(0.5, 0.6, 0.8);
 
-  const matPbrGold = new BABYLON.PBRMaterial("wGold", scene);
-  matPbrGold.albedoColor = new BABYLON.Color3(1.0, 0.75, 0.1);
-  matPbrGold.metallic = 0.95;
-  matPbrGold.roughness = 0.15;
+  const matGunGold = new BABYLON.StandardMaterial("gGold", scene);
+  matGunGold.diffuseColor = new BABYLON.Color3(1.0, 0.78, 0.15);
+  matGunGold.specularColor = new BABYLON.Color3(1.0, 0.9, 0.5);
 
   const wChassis = BABYLON.MeshBuilder.CreateBox("wChassis", { width: 0.18, height: 0.22, depth: 0.7 }, scene);
   wChassis.parent = weaponRoot;
-  wChassis.material = matPbrMetal;
+  wChassis.material = matGunMetal;
 
   const wRail = BABYLON.MeshBuilder.CreateBox("wRail", { width: 0.12, height: 0.08, depth: 0.5 }, scene);
   wRail.parent = weaponRoot;
   wRail.position.set(0, 0.13, 0.05);
-  wRail.material = matPbrGold;
+  wRail.material = matGunGold;
 
   [-0.045, 0.045].forEach(bx => {
     const b = BABYLON.MeshBuilder.CreateCylinder("wB", { height: 0.45, diameter: 0.08 }, scene);
     b.parent = weaponRoot;
     b.rotation.x = Math.PI / 2;
     b.position.set(bx, 0.02, 0.48);
-    b.material = matPbrGold;
+    b.material = matGunGold;
   });
 
   muzzleFlash = BABYLON.MeshBuilder.CreateSphere("MuzFlash", { diameter: 0.22 }, scene);
@@ -263,7 +256,7 @@ window.addEventListener('DOMContentLoaded', () => {
   muzzleFlash.isVisible = false;
 
   // ========================================================================
-  // HEALTH ORBS SYSTEM (Spawns every 20-25 seconds)
+  // HEALTH ORB SYSTEM (Spawns every 20-25 seconds)
   // ========================================================================
   function spawnHealthOrb() {
     if (healthOrb && healthOrb.root) {
@@ -285,7 +278,7 @@ window.addEventListener('DOMContentLoaded', () => {
     haloMat.emissiveColor = new BABYLON.Color3(0.0, 0.9, 1.0);
     haloRing.material = haloMat;
 
-    // Place randomly in arena
+    // Random location on ground
     const rx = (Math.random() - 0.5) * (ARENA_W - 24);
     const rz = (Math.random() - 0.5) * (ARENA_L - 24);
     root.position.set(rx, 1.8, rz);
@@ -295,12 +288,13 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   // ========================================================================
-  // STAGE GENERATION
+  // STAGES CLEANUP & SYSTEM
   // ========================================================================
   function clearCurrentStage() {
     stageMeshes.forEach(m => m.dispose());
     stageMeshes = [];
-    coverObstacles = [];
+    solidObstacles = [];
+    ladders = [];
     if (healthOrb && healthOrb.root) {
       healthOrb.root.dispose();
       healthOrb = null;
@@ -312,18 +306,19 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   // ------------------------------------------------------------------------
-  // STAGE 1: CARTOON CASTLE COURTYARD (Matching Reference Image)
+  // STAGE 1: CARTOON CASTLE COURTYARD (Solid Turf, High Walls, Corner Keeps)
   // ------------------------------------------------------------------------
   function buildCastleStage() {
-    scene.clearColor = new BABYLON.Color4(0.38, 0.74, 1.0, 1.0);
-    scene.fogColor = new BABYLON.Color3(0.38, 0.74, 1.0);
+    scene.clearColor = new BABYLON.Color4(0.35, 0.72, 1.0, 1.0);
 
+    // Guaranteed Opaque Solid Ground Plane
     const floor = BABYLON.MeshBuilder.CreateGround("Floor", { width: ARENA_W, height: ARENA_L }, scene);
-    const fMat = new BABYLON.PBRMaterial("fMat", scene);
-    const turfTex = createProceduralTexture('turf-grass');
+    floor.position.y = 0;
+    const fMat = new BABYLON.StandardMaterial("CastleFloorMat", scene);
+    const turfTex = createProceduralTexture('castle-turf');
     turfTex.uScale = 12; turfTex.vScale = 12;
-    fMat.albedoTexture = turfTex;
-    fMat.roughness = 0.8;
+    fMat.diffuseTexture = turfTex;
+    fMat.specularColor = new BABYLON.Color3(0.05, 0.05, 0.05);
     floor.material = fMat;
     floor.receiveShadows = true;
     stageMeshes.push(floor);
@@ -331,38 +326,30 @@ window.addEventListener('DOMContentLoaded', () => {
     const stoneTex = createProceduralTexture('castle-stone');
     stoneTex.uScale = 8; stoneTex.vScale = 4;
 
-    const wallMat = new BABYLON.PBRMaterial("cWallMat", scene);
-    wallMat.albedoTexture = stoneTex;
-    wallMat.metallic = 0.1; wallMat.roughness = 0.75;
+    const wallMat = new BABYLON.StandardMaterial("cWallMat", scene);
+    wallMat.diffuseTexture = stoneTex;
 
-    const redMat = new BABYLON.PBRMaterial("cRedMat", scene);
-    redMat.albedoColor = new BABYLON.Color3(0.92, 0.18, 0.14);
-    redMat.metallic = 0.2; redMat.roughness = 0.35;
+    const redMat = new BABYLON.StandardMaterial("cRedMat", scene);
+    redMat.diffuseColor = new BABYLON.Color3(0.92, 0.18, 0.14);
 
-    const goldMat = new BABYLON.PBRMaterial("cGoldMat", scene);
-    goldMat.albedoColor = new BABYLON.Color3(1.0, 0.76, 0.12);
-    goldMat.metallic = 0.9; goldMat.roughness = 0.2;
+    const goldMat = new BABYLON.StandardMaterial("cGoldMat", scene);
+    goldMat.diffuseColor = new BABYLON.Color3(1.0, 0.78, 0.15);
 
-    const darkIronMat = new BABYLON.PBRMaterial("cIronMat", scene);
-    darkIronMat.albedoColor = new BABYLON.Color3(0.18, 0.2, 0.24);
-    darkIronMat.metallic = 0.5; darkIronMat.roughness = 0.5;
+    const ironMat = new BABYLON.StandardMaterial("cIronMat", scene);
+    ironMat.diffuseColor = new BABYLON.Color3(0.18, 0.2, 0.24);
 
     const hw = ARENA_W / 2;
     const hl = ARENA_L / 2;
 
-    // High Castle Walls with Spiked Footing Base & Crenellations
     function makeCastleWall(x, z, w, d) {
-      // Dark spiked foundation footing collar (Anchored at y=0 to y=2.2)
       const footing = BABYLON.MeshBuilder.CreateBox("WFooting", { width: w + 1.6, height: 2.2, depth: d + 1.6 }, scene);
       footing.position.set(x, 1.1, z);
-      footing.material = darkIronMat;
+      footing.material = ironMat;
 
-      // Stone Wall Body (y=2.2 to WALL_H)
       const wall = BABYLON.MeshBuilder.CreateBox("WallBody", { width: w, height: WALL_H - 2.2, depth: d }, scene);
       wall.position.set(x, 2.2 + (WALL_H - 2.2) / 2, z);
       wall.material = wallMat;
 
-      // Scarlet Parapet Canopy Trim
       const trim = BABYLON.MeshBuilder.CreateBox("WallTrim", { width: w + 0.8, height: 1.4, depth: d + 0.8 }, scene);
       trim.position.set(x, WALL_H + 0.7, z);
       trim.material = redMat;
@@ -371,35 +358,32 @@ window.addEventListener('DOMContentLoaded', () => {
       shadowGen.addShadowCaster(wall);
       shadowGen.addShadowCaster(trim);
       stageMeshes.push(footing, wall, trim);
-    }
-    makeCastleWall(0, -hl, ARENA_W, 2.8);
-    makeCastleWall(0, hl, ARENA_W, 2.8);
-    makeCastleWall(-hw, 0, 2.8, ARENA_L);
-    makeCastleWall(hw, 0, 2.8, ARENA_L);
 
-    // 4 Reference-Accurate Towers: Beveled base, stone body, crown crest, and conical peaked red roof
+      solidObstacles.push({ minX: x - w / 2, maxX: x + w / 2, minZ: z - d / 2, maxZ: z + d / 2, maxY: WALL_H + 1.5 });
+    }
+    makeCastleWall(0, -hl, ARENA_W, 3.0);
+    makeCastleWall(0, hl, ARENA_W, 3.0);
+    makeCastleWall(-hw, 0, 3.0, ARENA_L);
+    makeCastleWall(hw, 0, 3.0, ARENA_L);
+
+    // 4 Corner Towers with Crown Badges & Pitched Scarlet Roofs
     [[-hw, -hl], [hw, -hl], [-hw, hl], [hw, hl]].forEach(([cx, cz]) => {
-      // Dark Spiked Iron Base Collar
       const baseIron = BABYLON.MeshBuilder.CreateBox("TBaseIron", { width: 12, height: 2.5, depth: 12 }, scene);
       baseIron.position.set(cx, 1.25, cz);
-      baseIron.material = darkIronMat;
+      baseIron.material = ironMat;
 
-      // Stone Bastion Tier 1
       const tier1 = BABYLON.MeshBuilder.CreateBox("TTier1", { width: 10.5, height: 6.0, depth: 10.5 }, scene);
       tier1.position.set(cx, 2.5 + 3.0, cz);
       tier1.material = wallMat;
 
-      // Golden Crown Emblem Plaque on Tower Front Face
       const crownPlaque = BABYLON.MeshBuilder.CreateBox("CrownPlaque", { width: 3.6, height: 2.4, depth: 0.6 }, scene);
       crownPlaque.position.set(cx, 5.5, cz < 0 ? cz + 5.5 : cz - 5.5);
       crownPlaque.material = goldMat;
 
-      // Tower Shaft (Reaching WALL_H + 8)
       const shaft = BABYLON.MeshBuilder.CreateCylinder("TShaft", { height: WALL_H - 2, diameter: 8.5, tessellation: 12 }, scene);
       shaft.position.set(cx, 8.5 + (WALL_H - 2) / 2, cz);
       shaft.material = wallMat;
 
-      // Red Roof Overhang Eaves & Peaked Cone Roof
       const roofEaves = BABYLON.MeshBuilder.CreateCylinder("TRoofEaves", { height: 1.2, diameter: 12.5, tessellation: 12 }, scene);
       roofEaves.position.set(cx, WALL_H + 7.5, cz);
       roofEaves.material = redMat;
@@ -408,29 +392,19 @@ window.addEventListener('DOMContentLoaded', () => {
       roofCone.position.set(cx, WALL_H + 12.5, cz);
       roofCone.material = redMat;
 
-      // Gold Spire Finial
       const finial = BABYLON.MeshBuilder.CreateSphere("TFinial", { diameter: 1.8 }, scene);
       finial.position.set(cx, WALL_H + 17.5, cz);
       finial.material = goldMat;
 
       shadowGen.addShadowCaster(baseIron);
       shadowGen.addShadowCaster(tier1);
-      shadowGen.addShadowCaster(shaft);
       shadowGen.addShadowCaster(roofCone);
       stageMeshes.push(baseIron, tier1, crownPlaque, shaft, roofEaves, roofCone, finial);
+
+      solidObstacles.push({ minX: cx - 6, maxX: cx + 6, minZ: cz - 6, maxZ: cz + 6, maxY: WALL_H + 18 });
     });
 
-    // Flowing Scarlet Banners
-    for (let z = -hl + 20; z <= hl - 20; z += 24) {
-      [-hw + 1.8, hw - 1.8].forEach(bx => {
-        const banner = BABYLON.MeshBuilder.CreateBox("Banner", { width: 0.3, height: 9.0, depth: 5.0 }, scene);
-        banner.position.set(bx, 10.5, z);
-        banner.material = redMat;
-        stageMeshes.push(banner);
-      });
-    }
-
-    // Ground Cover: Stone Bastion Pillars with Gold Caps
+    // Interior Stone Cover Pillars
     for (let i = 0; i < 8; i++) {
       const ang = (i / 8) * Math.PI * 2;
       const px = Math.cos(ang) * 28;
@@ -445,89 +419,145 @@ window.addEventListener('DOMContentLoaded', () => {
       pCap.material = redMat;
 
       shadowGen.addShadowCaster(pillar);
-      shadowGen.addShadowCaster(pCap);
       stageMeshes.push(pillar, pCap);
-      coverObstacles.push({ x: px, z: pz, radius: 2.2, jumpH: 6.5 });
+      solidObstacles.push({ minX: px - 1.8, maxX: px + 1.8, minZ: pz - 1.8, maxZ: pz + 1.8, maxY: 6.5 });
     }
 
-    boss = createGroundedBoss(0, "CITADEL GOLEM", 260, new BABYLON.Color3(0.55, 0.62, 0.75));
+    boss = createCenterBoss(0, "CITADEL GOLEM", 260, new BABYLON.Color3(0.55, 0.62, 0.75));
   }
 
   // ------------------------------------------------------------------------
-  // STAGE 2: DESERT CANYON (Skeletal Bones as Jumpable Cover)
+  // STAGE 2: MILITARY OUTPOST BASE (Watchtowers with Climbable Ladders)
   // ------------------------------------------------------------------------
-  function buildDesertStage() {
-    scene.clearColor = new BABYLON.Color4(0.96, 0.82, 0.52, 1.0);
-    scene.fogColor = new BABYLON.Color3(0.96, 0.82, 0.52);
+  function buildMilitaryBaseStage() {
+    scene.clearColor = new BABYLON.Color4(0.95, 0.82, 0.52, 1.0);
 
+    // Solid Sand / Concrete Base Floor
     const floor = BABYLON.MeshBuilder.CreateGround("Floor", { width: ARENA_W, height: ARENA_L }, scene);
-    const fMat = new BABYLON.PBRMaterial("fMat", scene);
-    const sandTex = createProceduralTexture('desert-sand');
+    floor.position.y = 0;
+    const fMat = new BABYLON.StandardMaterial("BaseFloorMat", scene);
+    const sandTex = createProceduralTexture('military-sand');
     sandTex.uScale = 12; sandTex.vScale = 12;
-    fMat.albedoTexture = sandTex;
-    fMat.roughness = 0.9;
+    fMat.diffuseTexture = sandTex;
+    fMat.specularColor = new BABYLON.Color3(0.05, 0.05, 0.05);
     floor.material = fMat;
     floor.receiveShadows = true;
     stageMeshes.push(floor);
 
-    const sandWallMat = new BABYLON.PBRMaterial("sWallMat", scene);
-    sandWallMat.albedoTexture = sandTex;
-    sandWallMat.roughness = 0.85;
+    const metalMat = new BABYLON.StandardMaterial("TowerMetalMat", scene);
+    metalMat.diffuseColor = new BABYLON.Color3(0.3, 0.35, 0.4);
+
+    const woodPlankMat = new BABYLON.StandardMaterial("PlankMat", scene);
+    woodPlankMat.diffuseColor = new BABYLON.Color3(0.65, 0.45, 0.25);
+
+    const ladderMat = new BABYLON.StandardMaterial("LadderMat", scene);
+    ladderMat.diffuseColor = new BABYLON.Color3(0.9, 0.7, 0.1);
+
+    const crateMat = new BABYLON.StandardMaterial("CrateMat", scene);
+    crateMat.diffuseColor = new BABYLON.Color3(0.5, 0.4, 0.28);
 
     const hw = ARENA_W / 2;
     const hl = ARENA_L / 2;
 
-    function makeSandWall(x, z, w, d) {
-      const wall = BABYLON.MeshBuilder.CreateBox("SandWall", { width: w, height: WALL_H, depth: d }, scene);
+    // Perimeter Outpost Walls
+    function makeOutpostWall(x, z, w, d) {
+      const wall = BABYLON.MeshBuilder.CreateBox("OutpostWall", { width: w, height: WALL_H, depth: d }, scene);
       wall.position.set(x, WALL_H / 2, z);
-      wall.material = sandWallMat;
+      wall.material = metalMat;
       shadowGen.addShadowCaster(wall);
       stageMeshes.push(wall);
+      solidObstacles.push({ minX: x - w / 2, maxX: x + w / 2, minZ: z - d / 2, maxZ: z + d / 2, maxY: WALL_H });
     }
-    makeSandWall(0, -hl, ARENA_W, 3.0);
-    makeSandWall(0, hl, ARENA_W, 3.0);
-    makeSandWall(-hw, 0, 3.0, ARENA_L);
-    makeSandWall(hw, 0, 3.0, ARENA_L);
+    makeOutpostWall(0, -hl, ARENA_W, 3.0);
+    makeOutpostWall(0, hl, ARENA_W, 3.0);
+    makeOutpostWall(-hw, 0, 3.0, ARENA_L);
+    makeOutpostWall(hw, 0, 3.0, ARENA_L);
 
-    // Large Jumpable Ribcage Bones
-    const boneMat = new BABYLON.PBRMaterial("bBoneMat", scene);
-    boneMat.albedoColor = new BABYLON.Color3(0.96, 0.94, 0.86);
-    boneMat.roughness = 0.45;
+    // 4 High Watchtowers with Platforms & Climbable Ladders
+    const towerCoords = [[-26, -26], [26, -26], [-26, 26], [26, 26]];
+    towerCoords.forEach(([tx, tz], idx) => {
+      const PLATFORM_Y = 8.5;
 
-    for (let i = 0; i < 16; i++) {
-      const ang = (i / 16) * Math.PI * 2;
-      const dist = 22 + (i % 2) * 12;
-      const bx = Math.cos(ang) * dist;
-      const bz = Math.sin(ang) * dist;
+      // 4 Metal Legs
+      [[-2.2, -2.2], [2.2, -2.2], [-2.2, 2.2], [2.2, 2.2]].forEach(([lx, lz]) => {
+        const leg = BABYLON.MeshBuilder.CreateCylinder("TLeg", { height: PLATFORM_Y, diameter: 0.5 }, scene);
+        leg.position.set(tx + lx, PLATFORM_Y / 2, tz + lz);
+        leg.material = metalMat;
+        stageMeshes.push(leg);
+      });
 
-      const rib = BABYLON.MeshBuilder.CreateTorus("BoneRib", { diameter: 5.6, thickness: 1.0, tessellation: 16 }, scene);
-      rib.position.set(bx, 0.5, bz);
-      rib.rotation.z = Math.PI / 2;
-      rib.rotation.y = Math.random() * Math.PI;
-      rib.material = boneMat;
-      shadowGen.addShadowCaster(rib);
-      stageMeshes.push(rib);
+      // Wooden Sniper Deck Platform
+      const deck = BABYLON.MeshBuilder.CreateBox("TDeck", { width: 6.5, height: 0.6, depth: 6.5 }, scene);
+      deck.position.set(tx, PLATFORM_Y, tz);
+      deck.material = woodPlankMat;
+      shadowGen.addShadowCaster(deck);
+      stageMeshes.push(deck);
 
-      coverObstacles.push({ x: bx, z: bz, radius: 2.8, jumpH: 2.2 });
+      // Guardrails
+      const railFront = BABYLON.MeshBuilder.CreateBox("TRailF", { width: 6.5, height: 1.4, depth: 0.3 }, scene);
+      railFront.position.set(tx, PLATFORM_Y + 0.8, tz - 3.1);
+      railFront.material = metalMat;
+
+      const railBack = BABYLON.MeshBuilder.CreateBox("TRailB", { width: 6.5, height: 1.4, depth: 0.3 }, scene);
+      railBack.position.set(tx, PLATFORM_Y + 0.8, tz + 3.1);
+      railBack.material = metalMat;
+      stageMeshes.push(railFront, railBack);
+
+      // Interactive Climbable Ladder on Front Face
+      const ladder = BABYLON.MeshBuilder.CreateBox(`Ladder_${idx}`, { width: 1.4, height: PLATFORM_Y, depth: 0.3 }, scene);
+      ladder.position.set(tx, PLATFORM_Y / 2, tz - 3.25);
+      ladder.material = ladderMat;
+      stageMeshes.push(ladder);
+
+      // Register Ladder Zone
+      ladders.push({
+        x: tx, z: tz - 3.25,
+        radius: 2.2,
+        platformY: PLATFORM_Y + 1.8
+      });
+
+      // Register Solid Obstacle for Deck & Posts
+      solidObstacles.push({
+        minX: tx - 3.25, maxX: tx + 3.25,
+        minZ: tz - 3.25, maxZ: tz + 3.25,
+        platformTop: PLATFORM_Y + 0.3,
+        maxY: PLATFORM_Y + 2.0
+      });
+    });
+
+    // Supply Crates for Ground Cover
+    for (let c = 0; c < 12; c++) {
+      const ang = (c / 12) * Math.PI * 2 + 0.3;
+      const dist = 18 + (c % 3) * 6;
+      const cx = Math.cos(ang) * dist;
+      const cz = Math.sin(ang) * dist;
+
+      const crate = BABYLON.MeshBuilder.CreateBox("Crate", { width: 3.2, height: 2.4, depth: 3.2 }, scene);
+      crate.position.set(cx, 1.2, cz);
+      crate.material = crateMat;
+      shadowGen.addShadowCaster(crate);
+      stageMeshes.push(crate);
+
+      solidObstacles.push({ minX: cx - 1.6, maxX: cx + 1.6, minZ: cz - 1.6, maxZ: cz + 1.6, maxY: 2.5 });
     }
 
-    boss = createGroundedBoss(1, "DUNE COLOSSUS", 340, new BABYLON.Color3(0.88, 0.55, 0.24));
+    boss = createCenterBoss(1, "DESERT WARLORD", 340, new BABYLON.Color3(0.85, 0.55, 0.22));
   }
 
   // ------------------------------------------------------------------------
-  // STAGE 3: METROPOLITAN CITY (Buildings & Cars - No Green Balls!)
+  // STAGE 3: METROPOLITAN CITY (Solid Cars & Skyscrapers - 100% Bulletproof)
   // ------------------------------------------------------------------------
   function buildCityStage() {
     scene.clearColor = new BABYLON.Color4(0.42, 0.65, 0.85, 1.0);
-    scene.fogColor = new BABYLON.Color3(0.42, 0.65, 0.85);
 
-    // Asphalt Street Ground with Road Markings
+    // Solid Asphalt Street Floor
     const floor = BABYLON.MeshBuilder.CreateGround("CityFloor", { width: ARENA_W, height: ARENA_L }, scene);
-    const fMat = new BABYLON.PBRMaterial("fMat", scene);
-    const asphaltTex = createProceduralTexture('city-asphalt');
-    asphaltTex.uScale = 8; asphaltTex.vScale = 8;
-    fMat.albedoTexture = asphaltTex;
-    fMat.roughness = 0.7;
+    floor.position.y = 0;
+    const fMat = new BABYLON.StandardMaterial("CityRoadMat", scene);
+    const roadTex = createProceduralTexture('city-road');
+    roadTex.uScale = 8; roadTex.vScale = 8;
+    fMat.diffuseTexture = roadTex;
+    fMat.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
     floor.material = fMat;
     floor.receiveShadows = true;
     stageMeshes.push(floor);
@@ -535,72 +565,70 @@ window.addEventListener('DOMContentLoaded', () => {
     const hw = ARENA_W / 2;
     const hl = ARENA_L / 2;
 
-    // Materials for Buildings & Vehicles
-    const concreteMat = new BABYLON.PBRMaterial("bldgConcMat", scene);
-    concreteMat.albedoColor = new BABYLON.Color3(0.32, 0.36, 0.42);
-    concreteMat.roughness = 0.6;
+    const concreteMat = new BABYLON.StandardMaterial("bldgConcMat", scene);
+    concreteMat.diffuseColor = new BABYLON.Color3(0.32, 0.36, 0.42);
 
-    const glassMat = new BABYLON.PBRMaterial("bldgGlassMat", scene);
-    glassMat.albedoColor = new BABYLON.Color3(0.2, 0.55, 0.75);
-    glassMat.metallic = 0.8; glassMat.roughness = 0.2;
+    const glassMat = new BABYLON.StandardMaterial("bldgGlassMat", scene);
+    glassMat.diffuseColor = new BABYLON.Color3(0.2, 0.55, 0.8);
+    glassMat.specularColor = new BABYLON.Color3(0.8, 0.9, 1.0);
 
     const carPaintColors = [
-      new BABYLON.Color3(0.9, 0.15, 0.15), // Red
-      new BABYLON.Color3(0.15, 0.45, 0.9), // Blue
-      new BABYLON.Color3(0.95, 0.8, 0.1),  // Yellow taxi
-      new BABYLON.Color3(0.2, 0.2, 0.22)   // Black sedan
+      new BABYLON.Color3(0.9, 0.15, 0.15),
+      new BABYLON.Color3(0.15, 0.45, 0.9),
+      new BABYLON.Color3(0.95, 0.8, 0.1),
+      new BABYLON.Color3(0.2, 0.2, 0.22)
     ];
 
-    const tireMat = new BABYLON.PBRMaterial("tireMat", scene);
-    tireMat.albedoColor = new BABYLON.Color3(0.1, 0.1, 0.1);
-    tireMat.roughness = 0.9;
+    const tireMat = new BABYLON.StandardMaterial("tireMat", scene);
+    tireMat.diffuseColor = new BABYLON.Color3(0.1, 0.1, 0.1);
 
-    const windshieldMat = new BABYLON.PBRMaterial("windMat", scene);
-    windshieldMat.albedoColor = new BABYLON.Color3(0.1, 0.25, 0.35);
-    windshieldMat.metallic = 0.7; windshieldMat.roughness = 0.15;
+    const windshieldMat = new BABYLON.StandardMaterial("windMat", scene);
+    windshieldMat.diffuseColor = new BABYLON.Color3(0.1, 0.25, 0.35);
 
-    // 1. Boundary Perimeter & High-Rise Skyscrapers in all 4 corners
+    // 1. Corner Skyscrapers (100% Solid & Bulletproof)
     [[-hw + 8, -hl + 8], [hw - 8, -hl + 8], [-hw + 8, hl - 8], [hw - 8, hl - 8]].forEach(([bx, bz], idx) => {
-      // Skyscraper Cluster (2 buildings per corner)
       for (let s = 0; s < 2; s++) {
-        const bHeight = 28 + (idx * 4 + s * 6);
-        const offsetX = s === 0 ? 0 : (bx > 0 ? -9 : 9);
-        const offsetZ = s === 0 ? 0 : (bz > 0 ? -9 : 9);
+        const bHeight = 32 + (idx * 4 + s * 6);
+        const offsetX = s === 0 ? 0 : (bx > 0 ? -10 : 10);
+        const offsetZ = s === 0 ? 0 : (bz > 0 ? -10 : 10);
+        const px = bx + offsetX;
+        const pz = bz + offsetZ;
 
-        const skyscraper = BABYLON.MeshBuilder.CreateBox(`Skyscraper_${idx}_${s}`, { width: 14, height: bHeight, depth: 14 }, scene);
-        skyscraper.position.set(bx + offsetX, bHeight / 2, bz + offsetZ);
+        const skyscraper = BABYLON.MeshBuilder.CreateBox(`Skyscraper_${idx}_${s}`, { width: 15, height: bHeight, depth: 15 }, scene);
+        skyscraper.position.set(px, bHeight / 2, pz);
         skyscraper.material = concreteMat;
 
-        // Glowing Blue Glass Windows Band
-        const winBand = BABYLON.MeshBuilder.CreateBox("WinBand", { width: 14.2, height: bHeight * 0.7, depth: 14.2 }, scene);
-        winBand.position.set(bx + offsetX, bHeight / 2, bz + offsetZ);
+        const winBand = BABYLON.MeshBuilder.CreateBox("WinBand", { width: 15.2, height: bHeight * 0.7, depth: 15.2 }, scene);
+        winBand.position.set(px, bHeight / 2, pz);
         winBand.material = glassMat;
 
-        // Rooftop Structure
-        const roofUnit = BABYLON.MeshBuilder.CreateBox("RoofUnit", { width: 6, height: 3.5, depth: 6 }, scene);
-        roofUnit.position.set(bx + offsetX, bHeight + 1.75, bz + offsetZ);
-        roofUnit.material = concreteMat;
-
         shadowGen.addShadowCaster(skyscraper);
-        shadowGen.addShadowCaster(winBand);
-        stageMeshes.push(skyscraper, winBand, roofUnit);
+        stageMeshes.push(skyscraper, winBand);
+
+        // Solid obstacle: stops players & 100% blocks bullets
+        solidObstacles.push({
+          minX: px - 7.6, maxX: px + 7.6,
+          minZ: pz - 7.6, maxZ: pz + 7.6,
+          maxY: bHeight
+        });
       }
     });
 
-    // Perimeter Concrete Security Barriers
+    // Perimeter Security Barriers
     function makeCityWall(x, z, w, d) {
       const wall = BABYLON.MeshBuilder.CreateBox("CityBarrier", { width: w, height: 7, depth: d }, scene);
       wall.position.set(x, 3.5, z);
       wall.material = concreteMat;
       shadowGen.addShadowCaster(wall);
       stageMeshes.push(wall);
+      solidObstacles.push({ minX: x - w / 2, maxX: x + w / 2, minZ: z - d / 2, maxZ: z + d / 2, maxY: 7 });
     }
-    makeCityWall(0, -hl, ARENA_W, 2.8);
-    makeCityWall(0, hl, ARENA_W, 2.8);
-    makeCityWall(-hw, 0, 2.8, ARENA_L);
-    makeCityWall(hw, 0, 2.8, ARENA_L);
+    makeCityWall(0, -hl, ARENA_W, 3.0);
+    makeCityWall(0, hl, ARENA_W, 3.0);
+    makeCityWall(-hw, 0, 3.0, ARENA_L);
+    makeCityWall(hw, 0, 3.0, ARENA_L);
 
-    // 2. Low-Poly Tactical Cars Scattered on the Street (Cover you can jump over)
+    // 2. Realistic Low-Poly Cars (100% Solid & Bulletproof Cover)
     for (let c = 0; c < 12; c++) {
       const ang = (c / 12) * Math.PI * 2 + 0.2;
       const dist = 24 + (c % 3) * 6;
@@ -609,26 +637,22 @@ window.addEventListener('DOMContentLoaded', () => {
 
       const carRoot = new BABYLON.TransformNode(`Car_${c}`, scene);
       carRoot.position.set(cx, 0, cz);
-      carRoot.rotation.y = ang + Math.PI / 2 + (Math.random() - 0.5) * 0.4;
+      carRoot.rotation.y = ang + Math.PI / 2;
 
-      const paintMat = new BABYLON.PBRMaterial(`CarPaint_${c}`, scene);
-      paintMat.albedoColor = carPaintColors[c % carPaintColors.length];
-      paintMat.metallic = 0.5; paintMat.roughness = 0.3;
+      const paintMat = new BABYLON.StandardMaterial(`CarPaint_${c}`, scene);
+      paintMat.diffuseColor = carPaintColors[c % carPaintColors.length];
 
-      // Chassis Body
-      const chassis = BABYLON.MeshBuilder.CreateBox("Chassis", { width: 3.2, height: 1.1, depth: 6.2 }, scene);
+      const chassis = BABYLON.MeshBuilder.CreateBox("Chassis", { width: 3.4, height: 1.2, depth: 6.4 }, scene);
       chassis.parent = carRoot;
       chassis.position.y = 0.9;
       chassis.material = paintMat;
 
-      // Cabin / Roof
       const cabin = BABYLON.MeshBuilder.CreateBox("Cabin", { width: 2.8, height: 1.0, depth: 3.6 }, scene);
       cabin.parent = carRoot;
-      cabin.position.set(0, 1.9, -0.3);
+      cabin.position.set(0, 2.0, -0.3);
       cabin.material = windshieldMat;
 
-      // 4 Wheels
-      [[-1.6, 1.8], [1.6, 1.8], [-1.6, -1.8], [1.6, -1.8]].forEach(([wx, wz]) => {
+      [[-1.7, 1.8], [1.7, 1.8], [-1.7, -1.8], [1.7, -1.8]].forEach(([wx, wz]) => {
         const wheel = BABYLON.MeshBuilder.CreateCylinder("Wheel", { height: 0.5, diameter: 1.2 }, scene);
         wheel.parent = carRoot;
         wheel.rotation.z = Math.PI / 2;
@@ -640,44 +664,41 @@ window.addEventListener('DOMContentLoaded', () => {
       shadowGen.addShadowCaster(cabin);
       stageMeshes.push(carRoot);
 
-      // Registers car as a jumpable obstacle (Height ~ 2.4)
-      coverObstacles.push({ x: cx, z: cz, radius: 2.6, jumpH: 2.4 });
+      // Solid obstacle: Cars fully absorb bullets and block movement
+      solidObstacles.push({
+        minX: cx - 2.8, maxX: cx + 2.8,
+        minZ: cz - 2.8, maxZ: cz + 2.8,
+        maxY: 2.6
+      });
     }
 
-    // Spawn Stage 3 City Titan
-    boss = createGroundedBoss(2, "CYBER GOLIATH", 440, new BABYLON.Color3(0.2, 0.35, 0.5));
+    boss = createCenterBoss(2, "CYBER GOLIATH", 440, new BABYLON.Color3(0.2, 0.35, 0.5));
   }
 
   // ========================================================================
-  // GROUNDED CENTER BOSS (Firmly Anchored at Dais y = 0.0)
+  // GROUNDED CENTER BOSS (Firmly on Central Dais)
   // ========================================================================
-  function createGroundedBoss(type, name, hp, color) {
+  function createCenterBoss(type, name, hp, color) {
     const root = new BABYLON.TransformNode("BossRoot", scene);
     root.position.set(0, 0, 0);
 
-    const bMat = new BABYLON.PBRMaterial("bMat", scene);
-    bMat.albedoColor = color;
-    bMat.metallic = 0.35;
-    bMat.roughness = 0.4;
+    const bMat = new BABYLON.StandardMaterial("bMat", scene);
+    bMat.diffuseColor = color;
 
-    const goldMat = new BABYLON.PBRMaterial("bGold", scene);
-    goldMat.albedoColor = new BABYLON.Color3(1.0, 0.75, 0.1);
-    goldMat.metallic = 0.9;
-    goldMat.roughness = 0.2;
+    const goldMat = new BABYLON.StandardMaterial("bGold", scene);
+    goldMat.diffuseColor = new BABYLON.Color3(1.0, 0.78, 0.15);
 
-    const daisMat = new BABYLON.PBRMaterial("daisMat", scene);
-    daisMat.albedoColor = new BABYLON.Color3(0.22, 0.24, 0.3);
-    daisMat.metallic = 0.2;
-    daisMat.roughness = 0.6;
+    const daisMat = new BABYLON.StandardMaterial("daisMat", scene);
+    daisMat.diffuseColor = new BABYLON.Color3(0.22, 0.24, 0.3);
 
-    // Central Stone Dais (Flush with ground: y=0 to y=1.2)
+    // Stone Dais (y=0 to y=1.2)
     const dais = BABYLON.MeshBuilder.CreateCylinder("Dais", { height: 1.2, diameter: 14, tessellation: 24 }, scene);
     dais.position.set(0, 0.6, 0);
     dais.material = daisMat;
     dais.receiveShadows = true;
     stageMeshes.push(dais);
 
-    // Boss Body Rig
+    // Boss Body
     const body = BABYLON.MeshBuilder.CreateBox("bBody", { width: 5.2, height: 5.8, depth: 4.8 }, scene);
     body.parent = root;
     body.position.y = 1.2 + 2.9;
@@ -690,18 +711,22 @@ window.addEventListener('DOMContentLoaded', () => {
     crown.material = goldMat;
     shadowGen.addShadowCaster(crown);
 
-    // Dual Heavy Cannons
+    // Heavy Cannons (Can pitch up/down toward player height)
+    const cannonPivot = new BABYLON.TransformNode("CannonPivot", scene);
+    cannonPivot.parent = body;
+    cannonPivot.position.set(0, 0, 2.5);
+
     [-2.2, 2.2].forEach(x => {
       const cannon = BABYLON.MeshBuilder.CreateCylinder("bCannon", { height: 4.2, diameter: 0.9 }, scene);
-      cannon.parent = body;
+      cannon.parent = cannonPivot;
       cannon.rotation.x = Math.PI / 2;
-      cannon.position.set(x, 0, 2.5);
+      cannon.position.set(x, 0, 0);
       cannon.material = goldMat;
       shadowGen.addShadowCaster(cannon);
     });
 
     return {
-      root, body, type, name,
+      root, body, cannonPivot, type, name,
       attackTimer: 1.2,
       hp, maxHp: hp, radius: 4.0
     };
@@ -710,8 +735,9 @@ window.addEventListener('DOMContentLoaded', () => {
   function loadStage(idx) {
     clearCurrentStage();
     state.stage = idx % 3;
+
     if (state.stage === 0) buildCastleStage();
-    else if (state.stage === 1) buildDesertStage();
+    else if (state.stage === 1) buildMilitaryBaseStage();
     else buildCityStage();
 
     state.bossHp = boss.hp;
@@ -726,7 +752,12 @@ window.addEventListener('DOMContentLoaded', () => {
     const bEl = document.getElementById('b-bar');
     const bLabel = document.getElementById('boss-label');
 
-    const names = ["STAGE 1: CITADEL COURTYARD 🏰", "STAGE 2: DESERT CANYON 🏜️", "STAGE 3: METROPOLITAN CITY 🏙️"];
+    const names = [
+      "STAGE 1: CITADEL COURTYARD 🏰",
+      "STAGE 2: MILITARY OUTPOST 🪖",
+      "STAGE 3: METROPOLITAN CITY 🏙️"
+    ];
+
     if (sEl && boss) sEl.innerText = `${names[state.stage]}`;
     if (scEl) scEl.innerText = `CONQUERED: ${state.score}`;
     if (bLabel && boss) bLabel.innerText = `${boss.name}`;
@@ -749,7 +780,7 @@ window.addEventListener('DOMContentLoaded', () => {
       isPlayer,
       dir: dir.normalize(),
       speed,
-      life: 2.8
+      life: 3.0
     });
 
     playSound(isPlayer ? 'fire' : 'enemy_fire');
@@ -763,7 +794,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     const fwd = camera.getForwardRay().direction;
     const origin = camera.position.add(fwd.scale(1.2));
-    shoot(origin, fwd, true, 68);
+    shoot(origin, fwd, true, 70);
   }
 
   // ========================================================================
@@ -772,7 +803,7 @@ window.addEventListener('DOMContentLoaded', () => {
   const keys = {};
   window.addEventListener('keydown', (e) => {
     keys[e.code] = true;
-    if (e.code === 'Space' && Math.abs(camera.position.y - 2.0) < 0.1) playerVy = 13.0;
+    if (e.code === 'Space' && Math.abs(camera.position.y - 2.0) < 0.2) playerVy = 13.0;
     if (e.key === 'Shift' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') playerFire();
   });
   window.addEventListener('keyup', (e) => keys[e.code] = false);
@@ -793,9 +824,7 @@ window.addEventListener('DOMContentLoaded', () => {
   });
 
   if (state.isMobile) {
-    const mobUI = document.getElementById('mobile-ui');
-    if (mobUI) mobUI.style.display = 'block';
-
+    document.getElementById('mobile-ui').style.display = 'block';
     const base = document.getElementById('joy-base');
     const stick = document.getElementById('joy-stick');
     let tid = null, rect = null;
@@ -825,8 +854,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
       const endTouch = (e) => {
         for (let t of e.changedTouches) {
-          if (t.identifier === tid) {
-            tid = null;
+          if (t.identifier === touchId) {
+            touchId = null;
             stick.style.transform = 'translate(-50%, -50%)';
             input.forward = 0; input.right = 0;
           }
@@ -840,7 +869,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if (btnJump) {
       btnJump.addEventListener('touchstart', (e) => {
         e.preventDefault();
-        if (Math.abs(camera.position.y - 2.0) < 0.1) playerVy = 13.0;
+        if (Math.abs(camera.position.y - 2.0) < 0.2) playerVy = 13.0;
       });
     }
 
@@ -854,7 +883,7 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   // ========================================================================
-  // RUNTIME LOOP & CIRCLING BOSS COMBAT
+  // MAIN ENGINE LOOP & 3D BOSS COMBAT
   // ========================================================================
   loadStage(0);
 
@@ -872,20 +901,42 @@ window.addEventListener('DOMContentLoaded', () => {
     fwd.y = 0; fwd.normalize();
     const right = new BABYLON.Vector3(fwd.z, 0, -fwd.x);
 
+    // Check Ladder Climbing Interaction in Stage 2
+    let nearLadder = null;
+    for (let l of ladders) {
+      if (Math.hypot(camera.position.x - l.x, camera.position.z - l.z) < l.radius) {
+        nearLadder = l;
+        break;
+      }
+    }
+
+    const ladderHint = document.getElementById('ladder-hint');
+    if (nearLadder) {
+      if (ladderHint) ladderHint.style.opacity = '1';
+      // Climbing vertically
+      if (input.forward > 0 || keys['Space']) {
+        isClimbing = true;
+        camera.position.y = Math.min(nearLadder.platformY, camera.position.y + 12 * dt);
+      }
+    } else {
+      if (ladderHint) ladderHint.style.opacity = '0';
+      isClimbing = false;
+    }
+
     if (moveMag > 0.05) {
       const moveDir = fwd.scale(input.forward).add(right.scale(input.right)).normalize();
       const nx = camera.position.x + moveDir.x * 18 * dt;
       const nz = camera.position.z + moveDir.z * 18 * dt;
 
       // Prevent walking into central boss dais
-      const distToCenter = Math.hypot(nx, nz);
-      let blocked = distToCenter < 7.2;
+      let blocked = Math.hypot(nx, nz) < 7.2;
 
-      // Check stage obstacles (Cars, pillars, rib bones)
-      for (let o of coverObstacles) {
-        if (Math.hypot(nx - o.x, nz - o.z) < 1.6 + o.radius) {
-          if (camera.position.y < o.jumpH + 1.2) {
-            blocked = true; break;
+      // Check Solid Obstacles (Walls, Crates, Cars, Skyscrapers)
+      for (let o of solidObstacles) {
+        if (nx >= o.minX && nx <= o.maxX && nz >= o.minZ && nz <= o.maxZ) {
+          if (camera.position.y < o.maxY) {
+            blocked = true;
+            break;
           }
         }
       }
@@ -895,7 +946,6 @@ window.addEventListener('DOMContentLoaded', () => {
         camera.position.z = nz;
       }
 
-      // Viewmodel Sway
       walkBob += dt * 10;
       weaponRoot.position.y = -0.32 + Math.sin(walkBob) * 0.02;
       weaponRoot.position.x = 0.4 + Math.cos(walkBob * 0.5) * 0.015;
@@ -907,16 +957,26 @@ window.addEventListener('DOMContentLoaded', () => {
     camera.position.x = Math.max(-ARENA_W / 2 + 4, Math.min(ARENA_W / 2 - 4, camera.position.x));
     camera.position.z = Math.max(-ARENA_L / 2 + 4, Math.min(ARENA_L / 2 - 4, camera.position.z));
 
-    // Jump Physics
-    camera.position.y += playerVy * dt;
-    if (camera.position.y > 2.0) {
-      playerVy -= 32 * dt;
-    } else {
-      camera.position.y = 2.0;
-      playerVy = 0;
+    // Jump & Gravity (Checks platform standing height)
+    let floorHeight = 2.0;
+    for (let o of solidObstacles) {
+      if (o.platformTop && camera.position.x >= o.minX && camera.position.x <= o.maxX && camera.position.z >= o.minZ && camera.position.z <= o.maxZ) {
+        floorHeight = o.platformTop + 1.8;
+        break;
+      }
     }
 
-    // Weapon Recoil Recovery
+    if (!isClimbing) {
+      camera.position.y += playerVy * dt;
+      if (camera.position.y > floorHeight) {
+        playerVy -= 32 * dt;
+      } else {
+        camera.position.y = floorHeight;
+        playerVy = 0;
+      }
+    }
+
+    // Recoil Recovery
     if (recoil > 0) {
       weaponRoot.position.z = 0.78 - recoil * 0.35;
       weaponRoot.rotation.x = -recoil * 0.45;
@@ -927,7 +987,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     // ======================================================================
-    // HEALTH ORB CYCLE (Drops every 20-25 seconds)
+    // HEALTH ORB CYCLE (Every 20-25 seconds)
     // ======================================================================
     orbDropTimer -= dt;
     if (orbDropTimer <= 0) {
@@ -952,39 +1012,69 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     // ======================================================================
-    // BOSS AI: Anchored at Center & Pivot Tracking
+    // 3D BOSS AI: Aiming Upward at Towers & 360° Blind-Spot Barrage
     // ======================================================================
     if (boss && !state.isTransitioning) {
-      const toP = camera.position.subtract(boss.root.position);
-      toP.y = 0;
-      toP.normalize();
+      const bossPos = new BABYLON.Vector3(0, 4.2, 0);
+      const toPlayer = camera.position.subtract(bossPos);
+      const dist = toPlayer.length();
 
-      // Boss looks directly toward the circling player
-      boss.root.rotation.y = Math.atan2(toP.x, toP.z);
+      // Yaw tracking (horizontal)
+      boss.root.rotation.y = Math.atan2(toPlayer.x, toPlayer.z);
+
+      // Pitch tracking (Cannons aim up as you climb watchtowers)
+      const pitchAngle = Math.atan2(toPlayer.y, Math.hypot(toPlayer.x, toPlayer.z));
+      if (boss.cannonPivot) boss.cannonPivot.rotation.x = -pitchAngle;
+
+      // Line of Sight Test: Is player hidden behind an obstacle/tower?
+      let isVisible = true;
+      for (let o of solidObstacles) {
+        // If midpoint between boss and player passes inside an obstacle
+        const midX = (camera.position.x + bossPos.x) / 2;
+        const midZ = (camera.position.z + bossPos.z) / 2;
+        if (midX >= o.minX && midX <= o.maxX && midZ >= o.minZ && midZ <= o.maxZ) {
+          if (camera.position.y < o.maxY) {
+            isVisible = false;
+            break;
+          }
+        }
+      }
 
       boss.attackTimer -= dt;
       if (boss.attackTimer <= 0) {
         const origin = new BABYLON.Vector3(0, 4.2, 0);
 
         if (boss.type === 0) {
-          // Stage 1 (Citadel Golem): Triple Mortar Spread
-          for (let a = -0.25; a <= 0.25; a += 0.25) {
-            const dir = new BABYLON.Vector3(toP.x + a * toP.z, 0, toP.z - a * toP.x);
-            shoot(origin, dir, false, 36);
+          // Stage 1: Citadel Golem (Triple Mortar Spread)
+          const normDir = toPlayer.clone().normalize();
+          for (let a = -0.22; a <= 0.22; a += 0.22) {
+            const dir = new BABYLON.Vector3(normDir.x + a * normDir.z, normDir.y, normDir.z - a * normDir.x);
+            shoot(origin, dir, false, 38);
           }
           boss.attackTimer = 1.3;
         } else if (boss.type === 1) {
-          // Stage 2 (Dune Colossus): Fast Sand Needle Burst
-          shoot(origin, toP, false, 48);
-          boss.attackTimer = 0.45;
+          // Stage 2: Desert Warlord
+          if (!isVisible) {
+            // Player is hidden behind cover / tower -> RAGE: 360° ALL-DIRECTION BULLETS!
+            for (let i = 0; i < 16; i++) {
+              const ang = (i / 16) * Math.PI * 2;
+              const dir = new BABYLON.Vector3(Math.cos(ang), 0.1, Math.sin(ang));
+              shoot(origin, dir, false, 42);
+            }
+            boss.attackTimer = 1.5;
+          } else {
+            // Direct aim (Elevates and shoots up at the watchtower platform!)
+            shoot(origin, toPlayer.clone().normalize(), false, 50);
+            boss.attackTimer = 0.55;
+          }
         } else {
-          // Stage 3 (Cyber Goliath FINAL BOSS): TIGHT 7-BULLET FAN SALVO
-          // Fires 7 bullets in a concentrated narrow cluster fan
-          const fanSpreadStep = 0.055; // Slightly close cluster
+          // Stage 3: Cyber Goliath FINAL BOSS -> TIGHT 7-BULLET FAN SALVO
+          const normDir = toPlayer.clone().normalize();
+          const fanStep = 0.05; // Tight close fan cluster
           for (let f = -3; f <= 3; f++) {
-            const spreadOffset = f * fanSpreadStep;
-            const dir = new BABYLON.Vector3(toP.x + spreadOffset * toP.z, 0, toP.z - spreadOffset * toP.x);
-            shoot(origin, dir, false, 50);
+            const offset = f * fanStep;
+            const dir = new BABYLON.Vector3(normDir.x + offset * normDir.z, normDir.y, normDir.z - offset * normDir.x);
+            shoot(origin, dir, false, 52);
           }
           boss.attackTimer = 1.6;
         }
@@ -992,37 +1082,41 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     // ======================================================================
-    // PROJECTILE SIMULATION & DAMAGE
+    // PROJECTILE SIMULATION & 100% BULLETPROOF COVER
     // ======================================================================
     for (let i = bullets.length - 1; i >= 0; i--) {
       const b = bullets[i];
       b.mesh.position.addInPlace(b.dir.scale(b.speed * dt));
       b.life -= dt;
 
+      // Arena boundary limits
       if (Math.abs(b.mesh.position.x) > ARENA_W / 2 || Math.abs(b.mesh.position.z) > ARENA_L / 2 || b.life <= 0) {
         b.mesh.dispose();
         bullets.splice(i, 1);
         continue;
       }
 
-      // Stage Obstacles (Cars, bones, pillars) block enemy bullets
-      if (!b.isPlayer) {
-        let hitCover = false;
-        for (let o of coverObstacles) {
-          if (Math.hypot(b.mesh.position.x - o.x, b.mesh.position.z - o.z) < o.radius) {
-            hitCover = true; break;
+      // Check Obstacle Intersections (Cars, Buildings, Watchtowers fully absorb bullets!)
+      let blockedByCover = false;
+      for (let o of solidObstacles) {
+        if (b.mesh.position.x >= o.minX && b.mesh.position.x <= o.maxX &&
+            b.mesh.position.z >= o.minZ && b.mesh.position.z <= o.maxZ) {
+          if (b.mesh.position.y <= o.maxY) {
+            blockedByCover = true;
+            break;
           }
-        }
-        if (hitCover) {
-          b.mesh.dispose();
-          bullets.splice(i, 1);
-          continue;
         }
       }
 
-      // Hit Boss at Center
+      if (blockedByCover) {
+        b.mesh.dispose();
+        bullets.splice(i, 1);
+        continue;
+      }
+
+      // Player Bullet Hits Center Boss
       if (b.isPlayer && boss) {
-        if (Math.hypot(b.mesh.position.x, b.mesh.position.z) < boss.radius) {
+        if (Math.hypot(b.mesh.position.x, b.mesh.position.z) < boss.radius && b.mesh.position.y > 0 && b.mesh.position.y < 8.5) {
           state.bossHp -= 16;
           playSound('hit');
           b.mesh.dispose();
@@ -1034,6 +1128,7 @@ window.addEventListener('DOMContentLoaded', () => {
             const fade = document.getElementById('stage-fade');
             if (fade) fade.style.opacity = '1';
             state.isTransitioning = true;
+
             setTimeout(() => {
               loadStage(state.score);
               camera.position.set(0, 2.0, 36);
@@ -1046,9 +1141,10 @@ window.addEventListener('DOMContentLoaded', () => {
         }
       }
 
-      // Hit Orbiting Player
+      // Boss Bullet Hits Player
       if (!b.isPlayer) {
-        if (Math.hypot(b.mesh.position.x - camera.position.x, b.mesh.position.z - camera.position.z) < 1.6) {
+        const distToPlayer = BABYLON.Vector3.Distance(b.mesh.position, camera.position);
+        if (distToPlayer < 1.8) {
           state.playerHp -= 14;
           playSound('hit');
           b.mesh.dispose();
@@ -1057,7 +1153,7 @@ window.addEventListener('DOMContentLoaded', () => {
           const flash = document.getElementById('hit-flash');
           if (flash) {
             flash.style.opacity = '1';
-            setTimeout(() => flash.style.opacity = '0', 80);
+            setTimeout(() => { flash.style.opacity = '0'; }, 80);
           }
 
           if (state.playerHp <= 0) {
