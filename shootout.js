@@ -1,5 +1,5 @@
 // ============================================================================
-// SHOOTOUT ⚔️ — Babylon.js Game Runtime (shootout.js)
+// SHOOTOUT ⚔️ — Babylon.js Complete Game Runtime (shootout.js)
 // ============================================================================
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -35,10 +35,10 @@ window.addEventListener('DOMContentLoaded', () => {
   let scene, camera, sun, fillLight, shadowGen;
   let boss = null;
   let stageMeshes = [];
-  let boneObstacles = [];
+  let coverObstacles = [];
   let bullets = [];
 
-  // Health Orb Drop System (Drops every 20-25 seconds)
+  // Health Orb Drop System (20-25s interval)
   let healthOrb = null;
   let orbDropTimer = 22.0;
 
@@ -110,16 +110,16 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   // ========================================================================
-  // PROCEDURAL HIGH-RESOLUTION TEXTURE ENGINE
+  // PROCEDURAL HIGH-RESOLUTION TEXTURE GENERATOR
   // ========================================================================
   function createProceduralTexture(type) {
     const c = document.createElement('canvas');
     c.width = 512; c.height = 512;
     const ctx = c.getContext('2d');
 
-    if (type === 'stone-blocks') {
-      ctx.fillStyle = '#d5dbe4'; ctx.fillRect(0, 0, 512, 512);
-      ctx.strokeStyle = '#8b96a5'; ctx.lineWidth = 6;
+    if (type === 'castle-stone') {
+      ctx.fillStyle = '#dde3ea'; ctx.fillRect(0, 0, 512, 512);
+      ctx.strokeStyle = '#7c8899'; ctx.lineWidth = 8;
       const rows = 8, cols = 4;
       const rh = 512 / rows, cw = 512 / cols;
       for (let r = 0; r < rows; r++) {
@@ -127,15 +127,15 @@ window.addEventListener('DOMContentLoaded', () => {
         for (let col = -1; col <= cols; col++) {
           ctx.strokeRect(col * cw + offset, r * rh, cw, rh);
           for (let p = 0; p < 6; p++) {
-            ctx.fillStyle = Math.random() > 0.5 ? '#b2bdcc' : '#eaf0f8';
-            ctx.fillRect(col * cw + offset + Math.random() * (cw - 12), r * rh + Math.random() * (rh - 12), 12, 10);
+            ctx.fillStyle = Math.random() > 0.5 ? '#b8c4d4' : '#f0f5fc';
+            ctx.fillRect(col * cw + offset + Math.random() * (cw - 14), r * rh + Math.random() * (rh - 14), 14, 10);
           }
         }
       }
     } else if (type === 'turf-grass') {
-      ctx.fillStyle = '#63bf2a'; ctx.fillRect(0, 0, 512, 512);
-      for (let i = 0; i < 700; i++) {
-        ctx.fillStyle = Math.random() > 0.5 ? '#7ad83c' : '#4fa81f';
+      ctx.fillStyle = '#65c42a'; ctx.fillRect(0, 0, 512, 512);
+      for (let i = 0; i < 750; i++) {
+        ctx.fillStyle = Math.random() > 0.5 ? '#80de3e' : '#4fa81f';
         ctx.fillRect(Math.random() * 512, Math.random() * 512, 4, 12);
       }
       ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 4;
@@ -148,16 +148,16 @@ window.addEventListener('DOMContentLoaded', () => {
       ctx.beginPath();
       ctx.moveTo(0, 120); ctx.bezierCurveTo(180, 180, 320, 60, 512, 140);
       ctx.stroke();
-    } else if (type === 'jungle-moss') {
-      ctx.fillStyle = '#2c7329'; ctx.fillRect(0, 0, 512, 512);
-      ctx.fillStyle = '#1e521c';
-      for (let i = 0; i < 80; i++) {
-        ctx.beginPath();
-        ctx.arc(Math.random() * 512, Math.random() * 512, Math.random() * 30 + 8, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      ctx.fillStyle = '#42a33e';
-      for (let i = 0; i < 400; i++) ctx.fillRect(Math.random() * 512, Math.random() * 512, 4, 8);
+    } else if (type === 'city-asphalt') {
+      ctx.fillStyle = '#22252a'; ctx.fillRect(0, 0, 512, 512);
+      ctx.fillStyle = '#2a2e36';
+      for (let i = 0; i < 1500; i++) ctx.fillRect(Math.random() * 512, Math.random() * 512, 2, 2);
+      // Road markings (yellow dashed line & crosswalk zebra stripes)
+      ctx.strokeStyle = '#f1c40f'; ctx.lineWidth = 10; ctx.setLineDash([40, 30]);
+      ctx.beginPath(); ctx.moveTo(0, 256); ctx.lineTo(512, 256); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#ecf0f1';
+      for (let x = 30; x < 512; x += 55) ctx.fillRect(x, 400, 28, 90);
     }
 
     const tex = new BABYLON.DynamicTexture("pTex_" + type, c, scene);
@@ -209,7 +209,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const cloudRoot = new BABYLON.TransformNode("Cloud", scene);
     cloudRoot.position.set(
       (Math.random() - 0.5) * 160,
-      34 + Math.random() * 8,
+      36 + Math.random() * 8,
       (Math.random() - 0.5) * 160
     );
     for (let p = 0; p < 4; p++) {
@@ -285,7 +285,7 @@ window.addEventListener('DOMContentLoaded', () => {
     haloMat.emissiveColor = new BABYLON.Color3(0.0, 0.9, 1.0);
     haloRing.material = haloMat;
 
-    // Place randomly in the arena
+    // Place randomly in arena
     const rx = (Math.random() - 0.5) * (ARENA_W - 24);
     const rz = (Math.random() - 0.5) * (ARENA_L - 24);
     root.position.set(rx, 1.8, rz);
@@ -295,12 +295,12 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   // ========================================================================
-  // GROUNDED COLOSSEUM WALLS (Anchored firmly at y = 0.0)
+  // STAGE GENERATION
   // ========================================================================
   function clearCurrentStage() {
     stageMeshes.forEach(m => m.dispose());
     stageMeshes = [];
-    boneObstacles = [];
+    coverObstacles = [];
     if (healthOrb && healthOrb.root) {
       healthOrb.root.dispose();
       healthOrb = null;
@@ -311,86 +311,9 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  function buildGroundedColosseumWalls(wallTex, trimColor, foundationColor) {
-    const hw = ARENA_W / 2;
-    const hl = ARENA_L / 2;
-
-    const wallMat = new BABYLON.PBRMaterial("pbrWall", scene);
-    wallMat.albedoTexture = wallTex;
-    wallMat.metallic = 0.1;
-    wallMat.roughness = 0.75;
-
-    const trimMat = new BABYLON.PBRMaterial("pbrTrim", scene);
-    trimMat.albedoColor = trimColor;
-    trimMat.metallic = 0.2;
-    trimMat.roughness = 0.4;
-
-    const baseMat = new BABYLON.PBRMaterial("pbrBase", scene);
-    baseMat.albedoColor = foundationColor;
-    baseMat.metallic = 0.3;
-    baseMat.roughness = 0.6;
-
-    function makeWall(x, z, w, d) {
-      // Solid Foundation Block (Floor Level y=0 to y=2)
-      const base = BABYLON.MeshBuilder.CreateBox("WBase", { width: w + 1.2, height: 2.0, depth: d + 1.2 }, scene);
-      base.position.set(x, 1.0, z);
-      base.material = baseMat;
-
-      // Main High Wall (y=2 to y=WALL_H)
-      const wall = BABYLON.MeshBuilder.CreateBox("WallSeg", { width: w, height: WALL_H - 2, depth: d }, scene);
-      wall.position.set(x, 2.0 + (WALL_H - 2) / 2, z);
-      wall.material = wallMat;
-
-      // Stepped Top Parapet Rail
-      const topRail = BABYLON.MeshBuilder.CreateBox("WallRail", { width: w + 0.8, height: 1.6, depth: d + 0.8 }, scene);
-      topRail.position.set(x, WALL_H + 0.8, z);
-      topRail.material = trimMat;
-
-      shadowGen.addShadowCaster(base);
-      shadowGen.addShadowCaster(wall);
-      shadowGen.addShadowCaster(topRail);
-      stageMeshes.push(base, wall, topRail);
-    }
-
-    makeWall(0, -hl, ARENA_W, 2.8);
-    makeWall(0, hl, ARENA_W, 2.8);
-    makeWall(-hw, 0, 2.8, ARENA_L);
-    makeWall(hw, 0, 2.8, ARENA_L);
-
-    // 4 Corner Bastions with Peaked Roofs (Anchored firmly at y=0)
-    [[-hw, -hl], [hw, -hl], [-hw, hl], [hw, hl]].forEach(([cx, cz]) => {
-      const towerBase = BABYLON.MeshBuilder.CreateBox("TBase", { width: 11, height: 2.2, depth: 11 }, scene);
-      towerBase.position.set(cx, 1.1, cz);
-      towerBase.material = baseMat;
-
-      const tower = BABYLON.MeshBuilder.CreateBox("TowerBody", { width: 9.5, height: WALL_H + 6, depth: 9.5 }, scene);
-      tower.position.set(cx, (WALL_H + 6) / 2, cz);
-      tower.material = wallMat;
-
-      const roof = BABYLON.MeshBuilder.CreateCylinder("TowerRoof", { height: 8, diameterTop: 0, diameterBottom: 13, tessellation: 8 }, scene);
-      roof.position.set(cx, WALL_H + 10, cz);
-      roof.material = trimMat;
-
-      shadowGen.addShadowCaster(towerBase);
-      shadowGen.addShadowCaster(tower);
-      shadowGen.addShadowCaster(roof);
-      stageMeshes.push(towerBase, tower, roof);
-    });
-
-    // Hanging Banners
-    for (let z = -hl + 20; z <= hl - 20; z += 24) {
-      [-hw + 1.6, hw - 1.6].forEach(bx => {
-        const banner = BABYLON.MeshBuilder.CreateBox("Banner", { width: 0.2, height: 8, depth: 4.5 }, scene);
-        banner.position.set(bx, 10, z);
-        banner.material = trimMat;
-        stageMeshes.push(banner);
-      });
-    }
-  }
-
-  // ========================================================================
-  // STAGES
-  // ========================================================================
+  // ------------------------------------------------------------------------
+  // STAGE 1: CARTOON CASTLE COURTYARD (Matching Reference Image)
+  // ------------------------------------------------------------------------
   function buildCastleStage() {
     scene.clearColor = new BABYLON.Color4(0.38, 0.74, 1.0, 1.0);
     scene.fogColor = new BABYLON.Color3(0.38, 0.74, 1.0);
@@ -405,30 +328,134 @@ window.addEventListener('DOMContentLoaded', () => {
     floor.receiveShadows = true;
     stageMeshes.push(floor);
 
-    const stoneTex = createProceduralTexture('stone-blocks');
+    const stoneTex = createProceduralTexture('castle-stone');
     stoneTex.uScale = 8; stoneTex.vScale = 4;
-    buildGroundedColosseumWalls(stoneTex, new BABYLON.Color3(0.92, 0.2, 0.18), new BABYLON.Color3(0.2, 0.22, 0.28));
 
-    // Cover props: Castle stone pillars
-    const pillarMat = new BABYLON.PBRMaterial("PillarMat", scene);
-    pillarMat.albedoColor = new BABYLON.Color3(0.7, 0.75, 0.85);
-    pillarMat.roughness = 0.5;
+    const wallMat = new BABYLON.PBRMaterial("cWallMat", scene);
+    wallMat.albedoTexture = stoneTex;
+    wallMat.metallic = 0.1; wallMat.roughness = 0.75;
 
+    const redMat = new BABYLON.PBRMaterial("cRedMat", scene);
+    redMat.albedoColor = new BABYLON.Color3(0.92, 0.18, 0.14);
+    redMat.metallic = 0.2; redMat.roughness = 0.35;
+
+    const goldMat = new BABYLON.PBRMaterial("cGoldMat", scene);
+    goldMat.albedoColor = new BABYLON.Color3(1.0, 0.76, 0.12);
+    goldMat.metallic = 0.9; goldMat.roughness = 0.2;
+
+    const darkIronMat = new BABYLON.PBRMaterial("cIronMat", scene);
+    darkIronMat.albedoColor = new BABYLON.Color3(0.18, 0.2, 0.24);
+    darkIronMat.metallic = 0.5; darkIronMat.roughness = 0.5;
+
+    const hw = ARENA_W / 2;
+    const hl = ARENA_L / 2;
+
+    // High Castle Walls with Spiked Footing Base & Crenellations
+    function makeCastleWall(x, z, w, d) {
+      // Dark spiked foundation footing collar (Anchored at y=0 to y=2.2)
+      const footing = BABYLON.MeshBuilder.CreateBox("WFooting", { width: w + 1.6, height: 2.2, depth: d + 1.6 }, scene);
+      footing.position.set(x, 1.1, z);
+      footing.material = darkIronMat;
+
+      // Stone Wall Body (y=2.2 to WALL_H)
+      const wall = BABYLON.MeshBuilder.CreateBox("WallBody", { width: w, height: WALL_H - 2.2, depth: d }, scene);
+      wall.position.set(x, 2.2 + (WALL_H - 2.2) / 2, z);
+      wall.material = wallMat;
+
+      // Scarlet Parapet Canopy Trim
+      const trim = BABYLON.MeshBuilder.CreateBox("WallTrim", { width: w + 0.8, height: 1.4, depth: d + 0.8 }, scene);
+      trim.position.set(x, WALL_H + 0.7, z);
+      trim.material = redMat;
+
+      shadowGen.addShadowCaster(footing);
+      shadowGen.addShadowCaster(wall);
+      shadowGen.addShadowCaster(trim);
+      stageMeshes.push(footing, wall, trim);
+    }
+    makeCastleWall(0, -hl, ARENA_W, 2.8);
+    makeCastleWall(0, hl, ARENA_W, 2.8);
+    makeCastleWall(-hw, 0, 2.8, ARENA_L);
+    makeCastleWall(hw, 0, 2.8, ARENA_L);
+
+    // 4 Reference-Accurate Towers: Beveled base, stone body, crown crest, and conical peaked red roof
+    [[-hw, -hl], [hw, -hl], [-hw, hl], [hw, hl]].forEach(([cx, cz]) => {
+      // Dark Spiked Iron Base Collar
+      const baseIron = BABYLON.MeshBuilder.CreateBox("TBaseIron", { width: 12, height: 2.5, depth: 12 }, scene);
+      baseIron.position.set(cx, 1.25, cz);
+      baseIron.material = darkIronMat;
+
+      // Stone Bastion Tier 1
+      const tier1 = BABYLON.MeshBuilder.CreateBox("TTier1", { width: 10.5, height: 6.0, depth: 10.5 }, scene);
+      tier1.position.set(cx, 2.5 + 3.0, cz);
+      tier1.material = wallMat;
+
+      // Golden Crown Emblem Plaque on Tower Front Face
+      const crownPlaque = BABYLON.MeshBuilder.CreateBox("CrownPlaque", { width: 3.6, height: 2.4, depth: 0.6 }, scene);
+      crownPlaque.position.set(cx, 5.5, cz < 0 ? cz + 5.5 : cz - 5.5);
+      crownPlaque.material = goldMat;
+
+      // Tower Shaft (Reaching WALL_H + 8)
+      const shaft = BABYLON.MeshBuilder.CreateCylinder("TShaft", { height: WALL_H - 2, diameter: 8.5, tessellation: 12 }, scene);
+      shaft.position.set(cx, 8.5 + (WALL_H - 2) / 2, cz);
+      shaft.material = wallMat;
+
+      // Red Roof Overhang Eaves & Peaked Cone Roof
+      const roofEaves = BABYLON.MeshBuilder.CreateCylinder("TRoofEaves", { height: 1.2, diameter: 12.5, tessellation: 12 }, scene);
+      roofEaves.position.set(cx, WALL_H + 7.5, cz);
+      roofEaves.material = redMat;
+
+      const roofCone = BABYLON.MeshBuilder.CreateCylinder("TRoofCone", { height: 9.0, diameterTop: 0, diameterBottom: 11.5, tessellation: 12 }, scene);
+      roofCone.position.set(cx, WALL_H + 12.5, cz);
+      roofCone.material = redMat;
+
+      // Gold Spire Finial
+      const finial = BABYLON.MeshBuilder.CreateSphere("TFinial", { diameter: 1.8 }, scene);
+      finial.position.set(cx, WALL_H + 17.5, cz);
+      finial.material = goldMat;
+
+      shadowGen.addShadowCaster(baseIron);
+      shadowGen.addShadowCaster(tier1);
+      shadowGen.addShadowCaster(shaft);
+      shadowGen.addShadowCaster(roofCone);
+      stageMeshes.push(baseIron, tier1, crownPlaque, shaft, roofEaves, roofCone, finial);
+    });
+
+    // Flowing Scarlet Banners
+    for (let z = -hl + 20; z <= hl - 20; z += 24) {
+      [-hw + 1.8, hw - 1.8].forEach(bx => {
+        const banner = BABYLON.MeshBuilder.CreateBox("Banner", { width: 0.3, height: 9.0, depth: 5.0 }, scene);
+        banner.position.set(bx, 10.5, z);
+        banner.material = redMat;
+        stageMeshes.push(banner);
+      });
+    }
+
+    // Ground Cover: Stone Bastion Pillars with Gold Caps
     for (let i = 0; i < 8; i++) {
       const ang = (i / 8) * Math.PI * 2;
       const px = Math.cos(ang) * 28;
       const pz = Math.sin(ang) * 28;
-      const pillar = BABYLON.MeshBuilder.CreateBox("Pillar", { width: 3.2, height: 5.5, depth: 3.2 }, scene);
+
+      const pillar = BABYLON.MeshBuilder.CreateBox("Pillar", { width: 3.4, height: 5.5, depth: 3.4 }, scene);
       pillar.position.set(px, 2.75, pz);
-      pillar.material = pillarMat;
+      pillar.material = wallMat;
+
+      const pCap = BABYLON.MeshBuilder.CreateBox("PCap", { width: 3.8, height: 1.0, depth: 3.8 }, scene);
+      pCap.position.set(px, 6.0, pz);
+      pCap.material = redMat;
+
       shadowGen.addShadowCaster(pillar);
-      stageMeshes.push(pillar);
-      boneObstacles.push({ x: px, z: pz, radius: 2.2, jumpH: 6.0 });
+      shadowGen.addShadowCaster(pCap);
+      stageMeshes.push(pillar, pCap);
+      coverObstacles.push({ x: px, z: pz, radius: 2.2, jumpH: 6.5 });
     }
 
     boss = createGroundedBoss(0, "CITADEL GOLEM", 260, new BABYLON.Color3(0.55, 0.62, 0.75));
   }
 
+  // ------------------------------------------------------------------------
+  // STAGE 2: DESERT CANYON (Skeletal Bones as Jumpable Cover)
+  // ------------------------------------------------------------------------
   function buildDesertStage() {
     scene.clearColor = new BABYLON.Color4(0.96, 0.82, 0.52, 1.0);
     scene.fogColor = new BABYLON.Color3(0.96, 0.82, 0.52);
@@ -443,10 +470,27 @@ window.addEventListener('DOMContentLoaded', () => {
     floor.receiveShadows = true;
     stageMeshes.push(floor);
 
-    buildGroundedColosseumWalls(sandTex, new BABYLON.Color3(0.68, 0.42, 0.2), new BABYLON.Color3(0.4, 0.25, 0.12));
+    const sandWallMat = new BABYLON.PBRMaterial("sWallMat", scene);
+    sandWallMat.albedoTexture = sandTex;
+    sandWallMat.roughness = 0.85;
 
-    // Jumpable Bone Rib Obstacles (Grounded on floor)
-    const boneMat = new BABYLON.PBRMaterial("bMat", scene);
+    const hw = ARENA_W / 2;
+    const hl = ARENA_L / 2;
+
+    function makeSandWall(x, z, w, d) {
+      const wall = BABYLON.MeshBuilder.CreateBox("SandWall", { width: w, height: WALL_H, depth: d }, scene);
+      wall.position.set(x, WALL_H / 2, z);
+      wall.material = sandWallMat;
+      shadowGen.addShadowCaster(wall);
+      stageMeshes.push(wall);
+    }
+    makeSandWall(0, -hl, ARENA_W, 3.0);
+    makeSandWall(0, hl, ARENA_W, 3.0);
+    makeSandWall(-hw, 0, 3.0, ARENA_L);
+    makeSandWall(hw, 0, 3.0, ARENA_L);
+
+    // Large Jumpable Ribcage Bones
+    const boneMat = new BABYLON.PBRMaterial("bBoneMat", scene);
     boneMat.albedoColor = new BABYLON.Color3(0.96, 0.94, 0.86);
     boneMat.roughness = 0.45;
 
@@ -464,55 +508,152 @@ window.addEventListener('DOMContentLoaded', () => {
       shadowGen.addShadowCaster(rib);
       stageMeshes.push(rib);
 
-      boneObstacles.push({ x: bx, z: bz, radius: 2.8, jumpH: 2.2 });
+      coverObstacles.push({ x: bx, z: bz, radius: 2.8, jumpH: 2.2 });
     }
 
     boss = createGroundedBoss(1, "DUNE COLOSSUS", 340, new BABYLON.Color3(0.88, 0.55, 0.24));
   }
 
-  function buildJungleStage() {
-    scene.clearColor = new BABYLON.Color4(0.48, 0.85, 0.65, 1.0);
-    scene.fogColor = new BABYLON.Color3(0.48, 0.85, 0.65);
+  // ------------------------------------------------------------------------
+  // STAGE 3: METROPOLITAN CITY (Buildings & Cars - No Green Balls!)
+  // ------------------------------------------------------------------------
+  function buildCityStage() {
+    scene.clearColor = new BABYLON.Color4(0.42, 0.65, 0.85, 1.0);
+    scene.fogColor = new BABYLON.Color3(0.42, 0.65, 0.85);
 
-    const floor = BABYLON.MeshBuilder.CreateGround("Floor", { width: ARENA_W, height: ARENA_L }, scene);
+    // Asphalt Street Ground with Road Markings
+    const floor = BABYLON.MeshBuilder.CreateGround("CityFloor", { width: ARENA_W, height: ARENA_L }, scene);
     const fMat = new BABYLON.PBRMaterial("fMat", scene);
-    const mossTex = createProceduralTexture('jungle-moss');
-    mossTex.uScale = 12; mossTex.vScale = 12;
-    fMat.albedoTexture = mossTex;
-    fMat.roughness = 0.75;
+    const asphaltTex = createProceduralTexture('city-asphalt');
+    asphaltTex.uScale = 8; asphaltTex.vScale = 8;
+    fMat.albedoTexture = asphaltTex;
+    fMat.roughness = 0.7;
     floor.material = fMat;
     floor.receiveShadows = true;
     stageMeshes.push(floor);
 
-    buildGroundedColosseumWalls(mossTex, new BABYLON.Color3(0.2, 0.78, 0.32), new BABYLON.Color3(0.12, 0.35, 0.16));
+    const hw = ARENA_W / 2;
+    const hl = ARENA_L / 2;
 
-    // Foliage Bushes (Visual concealment only)
-    const bushMat = new BABYLON.PBRMaterial("bushMat", scene);
-    bushMat.albedoColor = new BABYLON.Color3(0.18, 0.75, 0.3);
-    bushMat.roughness = 0.7;
+    // Materials for Buildings & Vehicles
+    const concreteMat = new BABYLON.PBRMaterial("bldgConcMat", scene);
+    concreteMat.albedoColor = new BABYLON.Color3(0.32, 0.36, 0.42);
+    concreteMat.roughness = 0.6;
 
-    for (let i = 0; i < 22; i++) {
-      const ang = (i / 22) * Math.PI * 2;
-      const dist = 24 + (i % 3) * 8;
-      const fx = Math.cos(ang) * dist;
-      const fz = Math.sin(ang) * dist;
+    const glassMat = new BABYLON.PBRMaterial("bldgGlassMat", scene);
+    glassMat.albedoColor = new BABYLON.Color3(0.2, 0.55, 0.75);
+    glassMat.metallic = 0.8; glassMat.roughness = 0.2;
 
-      const clump = BABYLON.MeshBuilder.CreateSphere("BushClump", { diameter: 3.4 }, scene);
-      clump.position.set(fx, 1.4, fz);
-      clump.material = bushMat;
-      shadowGen.addShadowCaster(clump);
-      stageMeshes.push(clump);
+    const carPaintColors = [
+      new BABYLON.Color3(0.9, 0.15, 0.15), // Red
+      new BABYLON.Color3(0.15, 0.45, 0.9), // Blue
+      new BABYLON.Color3(0.95, 0.8, 0.1),  // Yellow taxi
+      new BABYLON.Color3(0.2, 0.2, 0.22)   // Black sedan
+    ];
+
+    const tireMat = new BABYLON.PBRMaterial("tireMat", scene);
+    tireMat.albedoColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+    tireMat.roughness = 0.9;
+
+    const windshieldMat = new BABYLON.PBRMaterial("windMat", scene);
+    windshieldMat.albedoColor = new BABYLON.Color3(0.1, 0.25, 0.35);
+    windshieldMat.metallic = 0.7; windshieldMat.roughness = 0.15;
+
+    // 1. Boundary Perimeter & High-Rise Skyscrapers in all 4 corners
+    [[-hw + 8, -hl + 8], [hw - 8, -hl + 8], [-hw + 8, hl - 8], [hw - 8, hl - 8]].forEach(([bx, bz], idx) => {
+      // Skyscraper Cluster (2 buildings per corner)
+      for (let s = 0; s < 2; s++) {
+        const bHeight = 28 + (idx * 4 + s * 6);
+        const offsetX = s === 0 ? 0 : (bx > 0 ? -9 : 9);
+        const offsetZ = s === 0 ? 0 : (bz > 0 ? -9 : 9);
+
+        const skyscraper = BABYLON.MeshBuilder.CreateBox(`Skyscraper_${idx}_${s}`, { width: 14, height: bHeight, depth: 14 }, scene);
+        skyscraper.position.set(bx + offsetX, bHeight / 2, bz + offsetZ);
+        skyscraper.material = concreteMat;
+
+        // Glowing Blue Glass Windows Band
+        const winBand = BABYLON.MeshBuilder.CreateBox("WinBand", { width: 14.2, height: bHeight * 0.7, depth: 14.2 }, scene);
+        winBand.position.set(bx + offsetX, bHeight / 2, bz + offsetZ);
+        winBand.material = glassMat;
+
+        // Rooftop Structure
+        const roofUnit = BABYLON.MeshBuilder.CreateBox("RoofUnit", { width: 6, height: 3.5, depth: 6 }, scene);
+        roofUnit.position.set(bx + offsetX, bHeight + 1.75, bz + offsetZ);
+        roofUnit.material = concreteMat;
+
+        shadowGen.addShadowCaster(skyscraper);
+        shadowGen.addShadowCaster(winBand);
+        stageMeshes.push(skyscraper, winBand, roofUnit);
+      }
+    });
+
+    // Perimeter Concrete Security Barriers
+    function makeCityWall(x, z, w, d) {
+      const wall = BABYLON.MeshBuilder.CreateBox("CityBarrier", { width: w, height: 7, depth: d }, scene);
+      wall.position.set(x, 3.5, z);
+      wall.material = concreteMat;
+      shadowGen.addShadowCaster(wall);
+      stageMeshes.push(wall);
+    }
+    makeCityWall(0, -hl, ARENA_W, 2.8);
+    makeCityWall(0, hl, ARENA_W, 2.8);
+    makeCityWall(-hw, 0, 2.8, ARENA_L);
+    makeCityWall(hw, 0, 2.8, ARENA_L);
+
+    // 2. Low-Poly Tactical Cars Scattered on the Street (Cover you can jump over)
+    for (let c = 0; c < 12; c++) {
+      const ang = (c / 12) * Math.PI * 2 + 0.2;
+      const dist = 24 + (c % 3) * 6;
+      const cx = Math.cos(ang) * dist;
+      const cz = Math.sin(ang) * dist;
+
+      const carRoot = new BABYLON.TransformNode(`Car_${c}`, scene);
+      carRoot.position.set(cx, 0, cz);
+      carRoot.rotation.y = ang + Math.PI / 2 + (Math.random() - 0.5) * 0.4;
+
+      const paintMat = new BABYLON.PBRMaterial(`CarPaint_${c}`, scene);
+      paintMat.albedoColor = carPaintColors[c % carPaintColors.length];
+      paintMat.metallic = 0.5; paintMat.roughness = 0.3;
+
+      // Chassis Body
+      const chassis = BABYLON.MeshBuilder.CreateBox("Chassis", { width: 3.2, height: 1.1, depth: 6.2 }, scene);
+      chassis.parent = carRoot;
+      chassis.position.y = 0.9;
+      chassis.material = paintMat;
+
+      // Cabin / Roof
+      const cabin = BABYLON.MeshBuilder.CreateBox("Cabin", { width: 2.8, height: 1.0, depth: 3.6 }, scene);
+      cabin.parent = carRoot;
+      cabin.position.set(0, 1.9, -0.3);
+      cabin.material = windshieldMat;
+
+      // 4 Wheels
+      [[-1.6, 1.8], [1.6, 1.8], [-1.6, -1.8], [1.6, -1.8]].forEach(([wx, wz]) => {
+        const wheel = BABYLON.MeshBuilder.CreateCylinder("Wheel", { height: 0.5, diameter: 1.2 }, scene);
+        wheel.parent = carRoot;
+        wheel.rotation.z = Math.PI / 2;
+        wheel.position.set(wx, 0.6, wz);
+        wheel.material = tireMat;
+      });
+
+      shadowGen.addShadowCaster(chassis);
+      shadowGen.addShadowCaster(cabin);
+      stageMeshes.push(carRoot);
+
+      // Registers car as a jumpable obstacle (Height ~ 2.4)
+      coverObstacles.push({ x: cx, z: cz, radius: 2.6, jumpH: 2.4 });
     }
 
-    boss = createGroundedBoss(2, "VERDANT STALKER", 420, new BABYLON.Color3(0.18, 0.55, 0.22));
+    // Spawn Stage 3 City Titan
+    boss = createGroundedBoss(2, "CYBER GOLIATH", 440, new BABYLON.Color3(0.2, 0.35, 0.5));
   }
 
   // ========================================================================
-  // GROUNDED CENTER BOSS (Pivoting at y = 0.0)
+  // GROUNDED CENTER BOSS (Firmly Anchored at Dais y = 0.0)
   // ========================================================================
   function createGroundedBoss(type, name, hp, color) {
     const root = new BABYLON.TransformNode("BossRoot", scene);
-    root.position.set(0, 0, 0); // Center of the arena
+    root.position.set(0, 0, 0);
 
     const bMat = new BABYLON.PBRMaterial("bMat", scene);
     bMat.albedoColor = color;
@@ -529,7 +670,7 @@ window.addEventListener('DOMContentLoaded', () => {
     daisMat.metallic = 0.2;
     daisMat.roughness = 0.6;
 
-    // Central Stone Dais (Resting on turf: y=0 to y=1.2)
+    // Central Stone Dais (Flush with ground: y=0 to y=1.2)
     const dais = BABYLON.MeshBuilder.CreateCylinder("Dais", { height: 1.2, diameter: 14, tessellation: 24 }, scene);
     dais.position.set(0, 0.6, 0);
     dais.material = daisMat;
@@ -549,7 +690,7 @@ window.addEventListener('DOMContentLoaded', () => {
     crown.material = goldMat;
     shadowGen.addShadowCaster(crown);
 
-    // Dual Siege Cannons
+    // Dual Heavy Cannons
     [-2.2, 2.2].forEach(x => {
       const cannon = BABYLON.MeshBuilder.CreateCylinder("bCannon", { height: 4.2, diameter: 0.9 }, scene);
       cannon.parent = body;
@@ -571,7 +712,7 @@ window.addEventListener('DOMContentLoaded', () => {
     state.stage = idx % 3;
     if (state.stage === 0) buildCastleStage();
     else if (state.stage === 1) buildDesertStage();
-    else buildJungleStage();
+    else buildCityStage();
 
     state.bossHp = boss.hp;
     state.maxBossHp = boss.maxHp;
@@ -585,7 +726,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const bEl = document.getElementById('b-bar');
     const bLabel = document.getElementById('boss-label');
 
-    const names = ["STAGE 1: CITADEL COURTYARD 🏰", "STAGE 2: DESERT CANYON 🏜️", "STAGE 3: JUNGLE CLEARING 🌴"];
+    const names = ["STAGE 1: CITADEL COURTYARD 🏰", "STAGE 2: DESERT CANYON 🏜️", "STAGE 3: METROPOLITAN CITY 🏙️"];
     if (sEl && boss) sEl.innerText = `${names[state.stage]}`;
     if (scEl) scEl.innerText = `CONQUERED: ${state.score}`;
     if (bLabel && boss) bLabel.innerText = `${boss.name}`;
@@ -626,7 +767,7 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   // ========================================================================
-  // CONTROLS INTERFACING
+  // CONTROLS INTERFACING (Desktop & Mobile)
   // ========================================================================
   const keys = {};
   window.addEventListener('keydown', (e) => {
@@ -736,13 +877,14 @@ window.addEventListener('DOMContentLoaded', () => {
       const nx = camera.position.x + moveDir.x * 18 * dt;
       const nz = camera.position.z + moveDir.z * 18 * dt;
 
-      // Prevent player walking into the central boss dais
+      // Prevent walking into central boss dais
       const distToCenter = Math.hypot(nx, nz);
       let blocked = distToCenter < 7.2;
 
-      for (let b of boneObstacles) {
-        if (Math.hypot(nx - b.x, nz - b.z) < 1.6 + b.radius) {
-          if (camera.position.y < b.jumpH + 1.2) {
+      // Check stage obstacles (Cars, pillars, rib bones)
+      for (let o of coverObstacles) {
+        if (Math.hypot(nx - o.x, nz - o.z) < 1.6 + o.radius) {
+          if (camera.position.y < o.jumpH + 1.2) {
             blocked = true; break;
           }
         }
@@ -785,12 +927,12 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     // ======================================================================
-    // HEALTH ORB CYCLE: Spawns every 20-25 seconds & Collision
+    // HEALTH ORB CYCLE (Drops every 20-25 seconds)
     // ======================================================================
     orbDropTimer -= dt;
     if (orbDropTimer <= 0) {
       spawnHealthOrb();
-      orbDropTimer = 22.0 + Math.random() * 3.0; // 22-25 seconds interval
+      orbDropTimer = 22.0 + Math.random() * 3.0;
     }
 
     if (healthOrb && healthOrb.root) {
@@ -802,7 +944,7 @@ window.addEventListener('DOMContentLoaded', () => {
       if (distToOrb < healthOrb.radius + 1.2) {
         state.playerHp = Math.min(state.maxHp, state.playerHp + 25);
         playSound('heal');
-        showToast("+25% HEALTH RESTORED!", "#00ff88");
+        showToast("+25% HEALTH RESTORED!", "#00ffaa");
         healthOrb.root.dispose();
         healthOrb = null;
         updateHUD();
@@ -817,6 +959,7 @@ window.addEventListener('DOMContentLoaded', () => {
       toP.y = 0;
       toP.normalize();
 
+      // Boss looks directly toward the circling player
       boss.root.rotation.y = Math.atan2(toP.x, toP.z);
 
       boss.attackTimer -= dt;
@@ -831,21 +974,19 @@ window.addEventListener('DOMContentLoaded', () => {
           }
           boss.attackTimer = 1.3;
         } else if (boss.type === 1) {
-          // Stage 2 (Dune Colossus): Fast Shards
+          // Stage 2 (Dune Colossus): Fast Sand Needle Burst
           shoot(origin, toP, false, 48);
           boss.attackTimer = 0.45;
         } else {
-          // Stage 3 (Verdant Stalker FINAL BOSS): RAPID 5-BULLET STREAM
-          for (let f = 0; f < 5; f++) {
-            setTimeout(() => {
-              if (boss && !state.isTransitioning) {
-                const freshToP = camera.position.subtract(boss.root.position);
-                freshToP.y = 0;
-                shoot(new BABYLON.Vector3(0, 4.2, 0), freshToP.normalize(), false, 55);
-              }
-            }, f * 110);
+          // Stage 3 (Cyber Goliath FINAL BOSS): TIGHT 7-BULLET FAN SALVO
+          // Fires 7 bullets in a concentrated narrow cluster fan
+          const fanSpreadStep = 0.055; // Slightly close cluster
+          for (let f = -3; f <= 3; f++) {
+            const spreadOffset = f * fanSpreadStep;
+            const dir = new BABYLON.Vector3(toP.x + spreadOffset * toP.z, 0, toP.z - spreadOffset * toP.x);
+            shoot(origin, dir, false, 50);
           }
-          boss.attackTimer = 2.0;
+          boss.attackTimer = 1.6;
         }
       }
     }
@@ -864,15 +1005,15 @@ window.addEventListener('DOMContentLoaded', () => {
         continue;
       }
 
-      // Stage 2 Bones Block Bullets
+      // Stage Obstacles (Cars, bones, pillars) block enemy bullets
       if (!b.isPlayer) {
-        let hitBone = false;
-        for (let o of boneObstacles) {
+        let hitCover = false;
+        for (let o of coverObstacles) {
           if (Math.hypot(b.mesh.position.x - o.x, b.mesh.position.z - o.z) < o.radius) {
-            hitBone = true; break;
+            hitCover = true; break;
           }
         }
-        if (hitBone) {
+        if (hitCover) {
           b.mesh.dispose();
           bullets.splice(i, 1);
           continue;
