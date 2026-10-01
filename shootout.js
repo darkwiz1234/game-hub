@@ -1,54 +1,51 @@
 // ============================================================================
-// SHOOTOUT ⚔️ — High-Walled Voxel FPS Arena (shootout.js)
+// SHOOTOUT ⚔️ — Babylon.js Complete Game Runtime (shootout.js)
 // ============================================================================
 
 window.addEventListener('DOMContentLoaded', () => {
   const canvas = document.getElementById('renderCanvas');
   if (!canvas) {
-    console.error("Canvas element 'renderCanvas' not found!");
+    console.error("Canvas element with id 'renderCanvas' was not found!");
     return;
   }
 
-  // 1. Initialize Babylon Engine
+  // 1. Initialize Babylon.js Engine
   const engine = new BABYLON.Engine(canvas, true, {
     preserveDrawingBuffer: true,
-    stencil: true
+    stencil: true,
+    antialias: true
   });
 
   // --- GAME STATE ---
   const state = {
-    stageIndex: 0,
-    bossesDefeated: 0,
+    stage: 0,
+    score: 0,
     playerHp: 100,
-    playerMaxHp: 100,
-    bossHp: 240,
-    bossMaxHp: 240,
+    maxHp: 100,
+    bossHp: 260,
+    maxBossHp: 260,
     isTransitioning: false,
-    isGameOver: false,
     isMobile: /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 820
   };
 
-  const ARENA_W = 60;
-  const ARENA_L = 80;
-  const WALL_HEIGHT = 16; // High voxel stadium walls
+  const ARENA_W = 100;
+  const ARENA_L = 100;
+  const WALL_H = 18;
 
-  let scene, camera, sunLight, fillLight;
-  let currentBoss = null;
+  let scene, camera, sun, fillLight, shadowGen;
+  let boss = null;
   let stageMeshes = [];
   let boneObstacles = [];
-  let projectiles = [];
+  let bullets = [];
 
-  // FPS Viewmodel & Muzzle
-  let weaponRoot, muzzleMesh, weaponRecoil = 0;
-
-  // Kinematics & Input
-  const input = { forward: 0, right: 0 };
-  let playerVy = 0;
-  let walkBob = 0;
+  // Viewmodel Weapon Rig
+  let weaponRoot, muzzleFlash, recoil = 0;
+  let walkBob = 0, playerVy = 0;
   let isPointerLocked = false;
+  const input = { forward: 0, right: 0 };
 
   // ========================================================================
-  // PROCEDURAL AUDIO SYNTHESIZER
+  // PROCEDURAL AUDIO SYNTHESIZER (Web Audio API)
   // ========================================================================
   const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   function playSound(type) {
@@ -61,530 +58,593 @@ window.addEventListener('DOMContentLoaded', () => {
 
     if (type === 'fire') {
       osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(950, now);
-      osc.frequency.exponentialRampToValueAtTime(140, now + 0.1);
-      gain.gain.setValueAtTime(0.2, now);
+      osc.frequency.setValueAtTime(880, now);
+      osc.frequency.exponentialRampToValueAtTime(130, now + 0.1);
+      gain.gain.setValueAtTime(0.22, now);
       gain.gain.linearRampToValueAtTime(0, now + 0.1);
       osc.start(now); osc.stop(now + 0.1);
     } else if (type === 'enemy_fire') {
       osc.type = 'triangle';
       osc.frequency.setValueAtTime(260, now);
       osc.frequency.exponentialRampToValueAtTime(50, now + 0.18);
-      gain.gain.setValueAtTime(0.25, now);
+      gain.gain.setValueAtTime(0.28, now);
       gain.gain.linearRampToValueAtTime(0, now + 0.18);
       osc.start(now); osc.stop(now + 0.18);
     } else if (type === 'hit') {
       osc.type = 'square';
-      osc.frequency.setValueAtTime(130, now);
+      osc.frequency.setValueAtTime(140, now);
       osc.frequency.linearRampToValueAtTime(30, now + 0.14);
-      gain.gain.setValueAtTime(0.3, now);
+      gain.gain.setValueAtTime(0.35, now);
       gain.gain.linearRampToValueAtTime(0, now + 0.14);
       osc.start(now); osc.stop(now + 0.14);
     } else if (type === 'fanfare') {
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(280, now);
-      osc.frequency.exponentialRampToValueAtTime(750, now + 0.35);
-      gain.gain.setValueAtTime(0.35, now);
-      gain.gain.linearRampToValueAtTime(0, now + 0.35);
-      osc.start(now); osc.stop(now + 0.35);
+      osc.frequency.setValueAtTime(320, now);
+      osc.frequency.exponentialRampToValueAtTime(820, now + 0.4);
+      gain.gain.setValueAtTime(0.4, now);
+      gain.gain.linearRampToValueAtTime(0, now + 0.4);
+      osc.start(now); osc.stop(now + 0.4);
     }
   }
 
   // ========================================================================
-  // ZERO-DEPENDENCY HTML/CSS HUD & CROSSHAIR (Never crashes)
+  // ZERO-CRASH DOM OVERLAY (HUD, Crosshairs, Mobile Joysticks)
   // ========================================================================
   function setupDOMOverlay() {
-    let oldOverlay = document.getElementById('fps-hud-container');
-    if (oldOverlay) oldOverlay.remove();
+    let existing = document.getElementById('shootout-dom-overlay');
+    if (existing) existing.remove();
 
     const overlay = document.createElement('div');
-    overlay.id = 'fps-hud-container';
+    overlay.id = 'shootout-dom-overlay';
     overlay.innerHTML = `
       <style>
-        #fps-crosshair {
+        #so-crosshair {
           position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-          width: 24px; height: 24px; pointer-events: none; z-index: 100;
+          width: 26px; height: 26px; pointer-events: none; z-index: 100;
         }
-        #fps-crosshair::before {
-          content: ''; position: absolute; top: 0; left: 10px; width: 4px; height: 24px;
-          background: #00f0ff; box-shadow: 0 0 8px rgba(0,240,255,0.8);
+        #so-crosshair .ring {
+          position: absolute; inset: 0; border: 2px solid rgba(0, 240, 255, 0.85);
+          border-radius: 50%; box-shadow: 0 0 8px rgba(0,240,255,0.7);
         }
-        #fps-crosshair::after {
-          content: ''; position: absolute; top: 10px; left: 0; width: 24px; height: 4px;
-          background: #00f0ff; box-shadow: 0 0 8px rgba(0,240,255,0.8);
+        #so-crosshair .dot {
+          position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+          width: 4px; height: 4px; background: #ffea00; border-radius: 50%;
         }
-        #fps-hud {
-          position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
-          width: 90%; max-width: 620px; z-index: 100; pointer-events: none;
-          font-family: monospace, sans-serif; text-shadow: 1px 1px 3px #000;
+        #so-hud {
+          position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
+          width: 90%; max-width: 680px; z-index: 100; pointer-events: none;
+          font-family: 'Rajdhani', sans-serif; text-shadow: 0 2px 4px rgba(0,0,0,0.8);
         }
-        #fps-title {
-          font-size: 15px; font-weight: bold; color: #ffea00; margin-bottom: 6px;
-          display: flex; justify-content: space-between;
+        #so-hud-header {
+          display: flex; justify-content: space-between; align-items: center;
+          font-family: 'Orbitron', monospace, sans-serif; font-size: 13px; font-weight: 900;
+          margin-bottom: 8px; letter-spacing: 1.5px;
         }
-        .fps-bar-wrap {
-          background: rgba(10, 15, 30, 0.7); border: 2px solid #fff;
-          height: 16px; border-radius: 8px; overflow: hidden; margin-bottom: 6px;
+        #so-stage-name { color: #ffea00; text-shadow: 0 0 10px rgba(255, 234, 0, 0.7); }
+        #so-score-text { color: #ffffff; text-shadow: 0 0 10px rgba(0, 240, 255, 0.7); }
+        .so-bar-box {
+          background: rgba(10, 15, 30, 0.75); border: 2px solid rgba(255, 255, 255, 0.85);
+          height: 18px; border-radius: 6px; margin-bottom: 6px; overflow: hidden;
+          box-shadow: 0 4px 15px rgba(0,0,0,0.4);
         }
-        #fps-p-bar { height: 100%; width: 100%; background: #00ffaa; transition: width 0.1s linear; }
-        #fps-b-bar { height: 100%; width: 100%; background: #ff0055; transition: width 0.1s linear; }
-        #fps-stage-fade {
-          position: fixed; inset: 0; background: #fff; opacity: 0;
-          pointer-events: none; transition: opacity 0.5s ease; z-index: 200;
+        #so-player-bar { height: 100%; width: 100%; background: linear-gradient(90deg, #00ff88, #00f0ff); transition: width 0.1s linear; }
+        #so-boss-bar { height: 100%; width: 100%; background: linear-gradient(90deg, #ff0055, #ffaa00); transition: width 0.1s linear; }
+        #so-hit-flash {
+          position: fixed; inset: 0; background: rgba(255, 0, 40, 0.35);
+          opacity: 0; pointer-events: none; transition: opacity 0.08s ease; z-index: 150;
         }
+        #so-fade-curtain {
+          position: fixed; inset: 0; background: #000;
+          opacity: 0; pointer-events: none; transition: opacity 0.5s ease; z-index: 200;
+        }
+        #so-mobile-ui { display: none; position: fixed; inset: 0; pointer-events: none; z-index: 120; }
+        #so-joy-base {
+          position: absolute; bottom: 25px; left: 25px; width: 130px; height: 130px; border-radius: 50%;
+          border: 3px solid rgba(255, 234, 0, 0.7); background: radial-gradient(circle, rgba(0,240,255,0.2), rgba(10,15,30,0.6));
+          pointer-events: auto; touch-action: none;
+        }
+        #so-joy-stick {
+          position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+          width: 50px; height: 50px; border-radius: 50%; background: #ffea00; box-shadow: 0 0 12px #ffaa00;
+          pointer-events: none;
+        }
+        .so-touch-btn {
+          position: absolute; border: 2px solid #fff; font-family: 'Orbitron', sans-serif;
+          font-weight: 900; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+          pointer-events: auto; color: #fff;
+        }
+        #so-btn-jump { bottom: 125px; right: 30px; width: 62px; height: 62px; background: rgba(0, 255, 170, 0.35); border-color: #00ffaa; }
+        #so-btn-fire { bottom: 30px; right: 30px; width: 80px; height: 80px; background: rgba(255, 0, 85, 0.4); border-color: #ff0055; }
       </style>
-      <div id="fps-crosshair"></div>
-      <div id="fps-stage-fade"></div>
-      <div id="fps-hud">
-        <div id="fps-title">
-          <span id="fps-stage-name">STAGE 1: VOXEL CITADEL</span>
-          <span id="fps-score">DEFEATED: 0</span>
+      <div id="so-hit-flash"></div>
+      <div id="so-fade-curtain"></div>
+      <div id="so-crosshair"><div class="ring"></div><div class="dot"></div></div>
+      <div id="so-hud">
+        <div id="so-hud-header">
+          <span id="so-stage-name">STAGE 1: CITADEL COURTYARD</span>
+          <span id="so-score-text">CONQUERED: 0</span>
         </div>
-        <div class="fps-bar-wrap"><div id="fps-p-bar"></div></div>
-        <div class="fps-bar-wrap"><div id="fps-b-bar"></div></div>
+        <div class="so-bar-box"><div id="so-player-bar"></div></div>
+        <div class="so-bar-box"><div id="so-boss-bar"></div></div>
+      </div>
+      <div id="so-mobile-ui">
+        <div id="so-joy-base"><div id="so-joy-stick"></div></div>
+        <div id="so-btn-jump" class="so-touch-btn">JUMP</div>
+        <div id="so-btn-fire" class="so-touch-btn">FIRE</div>
       </div>
     `;
     document.body.appendChild(overlay);
   }
 
   function updateHUD() {
-    const stageName = document.getElementById('fps-stage-name');
-    const score = document.getElementById('fps-score');
-    const pBar = document.getElementById('fps-p-bar');
-    const bBar = document.getElementById('fps-b-bar');
+    const sEl = document.getElementById('so-stage-name');
+    const scEl = document.getElementById('so-score-text');
+    const pEl = document.getElementById('so-player-bar');
+    const bEl = document.getElementById('so-boss-bar');
 
-    const titles = [
-      "STAGE 1: VOXEL CITADEL 🏰",
-      "STAGE 2: DESERT CANYON 🏜️",
-      "STAGE 3: JUNGLE CLEARING 🌴"
-    ];
-
-    if (stageName && currentBoss) stageName.innerText = `${titles[state.stageIndex]} — ${currentBoss.name}`;
-    if (score) score.innerText = `DEFEATED: ${state.bossesDefeated}`;
-    if (pBar) pBar.style.width = `${Math.max(0, (state.playerHp / state.playerMaxHp) * 100)}%`;
-    if (bBar && currentBoss) bBar.style.width = `${Math.max(0, (state.bossHp / state.bossMaxHp) * 100)}%`;
+    const names = ["STAGE 1: CITADEL COURTYARD 🏰", "STAGE 2: DESERT CANYON 🏜️", "STAGE 3: JUNGLE CLEARING 🌴"];
+    if (sEl && boss) sEl.innerText = `${names[state.stage]} — ${boss.name}`;
+    if (scEl) scEl.innerText = `CONQUERED: ${state.score}`;
+    if (pEl) pEl.style.width = `${Math.max(0, (state.playerHp / state.maxHp) * 100)}%`;
+    if (bEl && boss) bEl.style.width = `${Math.max(0, (state.bossHp / state.maxBossHp) * 100)}%`;
   }
 
   // ========================================================================
-  // SCENE CREATION & LIGHTING
+  // PROCEDURAL TEXTURE GENERATOR (Dynamic Canvas to Texture)
   // ========================================================================
-  function createScene() {
-    scene = new BABYLON.Scene(engine);
-    scene.clearColor = new BABYLON.Color4(0.48, 0.78, 0.98, 1.0); // Bright sky
+  function createProceduralTexture(type) {
+    const c = document.createElement('canvas');
+    c.width = 512; c.height = 512;
+    const ctx = c.getContext('2d');
 
-    // First Person Camera (At eye-height 2.0 looking forward)
-    camera = new BABYLON.UniversalCamera("FpsCam", new BABYLON.Vector3(0, 2.0, 24), scene);
-    camera.setTarget(new BABYLON.Vector3(0, 2.0, 0));
-    camera.speed = 0; // Manual FPS kinematics
-    camera.angularSensibility = 2200;
-    camera.minZ = 0.1;
-    camera.fov = 1.15;
-    camera.attachControl(canvas, true);
+    if (type === 'stone-blocks') {
+      ctx.fillStyle = '#d5dbe4'; ctx.fillRect(0, 0, 512, 512);
+      ctx.strokeStyle = '#8b96a5'; ctx.lineWidth = 6;
+      const rows = 8, cols = 4;
+      const rh = 512 / rows, cw = 512 / cols;
+      for (let r = 0; r < rows; r++) {
+        const offset = (r % 2) * (cw / 2);
+        for (let col = -1; col <= cols; col++) {
+          ctx.strokeRect(col * cw + offset, r * rh, cw, rh);
+          for (let p = 0; p < 6; p++) {
+            ctx.fillStyle = Math.random() > 0.5 ? '#b2bdcc' : '#eaf0f8';
+            ctx.fillRect(col * cw + offset + Math.random() * (cw - 12), r * rh + Math.random() * (rh - 12), 12, 10);
+          }
+        }
+      }
+    } else if (type === 'turf-grass') {
+      ctx.fillStyle = '#63bf2a'; ctx.fillRect(0, 0, 512, 512);
+      for (let i = 0; i < 700; i++) {
+        ctx.fillStyle = Math.random() > 0.5 ? '#7ad83c' : '#4fa81f';
+        ctx.fillRect(Math.random() * 512, Math.random() * 512, 4, 12);
+      }
+      ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 4;
+      ctx.strokeRect(0, 0, 512, 512);
+    } else if (type === 'desert-sand') {
+      ctx.fillStyle = '#e8ad46'; ctx.fillRect(0, 0, 512, 512);
+      ctx.fillStyle = '#d49633';
+      for (let i = 0; i < 1200; i++) ctx.fillRect(Math.random() * 512, Math.random() * 512, 3, 3);
+      ctx.strokeStyle = 'rgba(255, 230, 160, 0.4)'; ctx.lineWidth = 14;
+      ctx.beginPath();
+      ctx.moveTo(0, 120); ctx.bezierCurveTo(180, 180, 320, 60, 512, 140);
+      ctx.stroke();
+    } else if (type === 'jungle-moss') {
+      ctx.fillStyle = '#2c7329'; ctx.fillRect(0, 0, 512, 512);
+      ctx.fillStyle = '#1e521c';
+      for (let i = 0; i < 80; i++) {
+        ctx.beginPath();
+        ctx.arc(Math.random() * 512, Math.random() * 512, Math.random() * 30 + 8, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = '#42a33e';
+      for (let i = 0; i < 400; i++) ctx.fillRect(Math.random() * 512, Math.random() * 512, 4, 8);
+    }
 
-    // Bright Cheerful Ambient Fill + Directional Sun
-    fillLight = new BABYLON.HemisphericLight("FillLight", new BABYLON.Vector3(0, 1, 0), scene);
-    fillLight.intensity = 0.9;
-    fillLight.diffuse = new BABYLON.Color3(1.0, 0.98, 0.92);
-
-    sunLight = new BABYLON.DirectionalLight("SunLight", new BABYLON.Vector3(-0.6, -1.2, -0.7), scene);
-    sunLight.position = new BABYLON.Vector3(30, 60, 40);
-    sunLight.intensity = 1.25;
-
-    // Viewmodel Blaster in Hand
-    buildViewmodelBlaster();
-
-    // DOM HUD and Crosshair
-    setupDOMOverlay();
-
-    // Build Initial Stage
-    loadStage(0);
-
-    return scene;
+    const tex = new BABYLON.DynamicTexture("pTex_" + type, c, scene);
+    tex.wrapU = tex.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE;
+    return tex;
   }
 
   // ========================================================================
-  // FIRST PERSON VIEWMODEL BLASTER (Rigged to Camera)
+  // SCENE, SKY, LIGHTS & SHADOW ENGINE
   // ========================================================================
-  function buildViewmodelBlaster() {
-    weaponRoot = new BABYLON.TransformNode("WeaponRoot", scene);
-    weaponRoot.parent = camera;
-    weaponRoot.position.set(0.38, -0.32, 0.75); // Lower-right FPS hand position
+  scene = new BABYLON.Scene(engine);
+  scene.clearColor = new BABYLON.Color4(0.38, 0.74, 1.0, 1.0);
 
-    const matVoxelBlue = new BABYLON.StandardMaterial("VM_Blue", scene);
-    matVoxelBlue.diffuseColor = new BABYLON.Color3(0.2, 0.45, 0.85);
+  scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
+  scene.fogDensity = 0.005;
+  scene.fogColor = new BABYLON.Color3(0.38, 0.74, 1.0);
 
-    const matVoxelGold = new BABYLON.StandardMaterial("VM_Gold", scene);
-    matVoxelGold.diffuseColor = new BABYLON.Color3(1.0, 0.75, 0.1);
+  // FPS Eye Camera
+  camera = new BABYLON.UniversalCamera("FpsCam", new BABYLON.Vector3(0, 2.0, 36), scene);
+  camera.setTarget(new BABYLON.Vector3(0, 2.0, 0));
+  camera.speed = 0;
+  camera.angularSensibility = 2200;
+  camera.minZ = 0.1;
+  camera.fov = 1.15;
+  camera.attachControl(canvas, true);
 
-    // Blocky Voxel Receiver
-    const body = BABYLON.MeshBuilder.CreateBox("GunBody", { width: 0.18, height: 0.22, depth: 0.65 }, scene);
-    body.parent = weaponRoot;
-    body.material = matVoxelBlue;
+  // Dual Lights: Natural Sunlight + Ambient Sky Fill
+  fillLight = new BABYLON.HemisphericLight("FillLight", new BABYLON.Vector3(0, 1, 0), scene);
+  fillLight.intensity = 0.95;
+  fillLight.diffuse = new BABYLON.Color3(1.0, 0.98, 0.94);
+  fillLight.groundColor = new BABYLON.Color3(0.45, 0.55, 0.35);
 
-    // Top Barrel Rails
-    const rail = BABYLON.MeshBuilder.CreateBox("GunRail", { width: 0.12, height: 0.08, depth: 0.5 }, scene);
-    rail.parent = weaponRoot;
-    rail.position.set(0, 0.12, 0.05);
-    rail.material = matVoxelGold;
+  sun = new BABYLON.DirectionalLight("Sun", new BABYLON.Vector3(-0.6, -1.3, -0.7), scene);
+  sun.position = new BABYLON.Vector3(40, 80, 50);
+  sun.intensity = 1.35;
 
-    // Twin square barrels
-    [-0.04, 0.04].forEach(bx => {
-      const b = BABYLON.MeshBuilder.CreateBox("GunBarrel", { width: 0.06, height: 0.06, depth: 0.45 }, scene);
-      b.parent = weaponRoot;
-      b.position.set(bx, 0.02, 0.45);
-      b.material = matVoxelGold;
-    });
+  // Real-Time Contact Shadow Generator
+  shadowGen = new BABYLON.ShadowGenerator(1024, sun);
+  shadowGen.useBlurExponentialShadowMap = true;
+  shadowGen.blurKernel = 16;
+  shadowGen.darkness = 0.45;
 
-    // Muzzle Flash
-    muzzleMesh = BABYLON.MeshBuilder.CreateBox("Muzzle", { size: 0.18 }, scene);
-    muzzleMesh.parent = weaponRoot;
-    muzzleMesh.position.set(0, 0.02, 0.72);
-    const mMat = new BABYLON.StandardMaterial("MuzMat", scene);
-    mMat.emissiveColor = new BABYLON.Color3(0, 1, 1);
-    muzzleMesh.material = mMat;
-    muzzleMesh.isVisible = false;
+  // Stylized 3D Clouds in Sky
+  const cloudMat = new BABYLON.StandardMaterial("CloudMat", scene);
+  cloudMat.diffuseColor = new BABYLON.Color3(1, 1, 1);
+  cloudMat.emissiveColor = new BABYLON.Color3(0.85, 0.9, 0.95);
+
+  for (let c = 0; c < 12; c++) {
+    const cloudRoot = new BABYLON.TransformNode("Cloud", scene);
+    cloudRoot.position.set(
+      (Math.random() - 0.5) * 160,
+      34 + Math.random() * 8,
+      (Math.random() - 0.5) * 160
+    );
+    for (let p = 0; p < 4; p++) {
+      const part = BABYLON.MeshBuilder.CreateSphere("CPart", { diameter: 7 + Math.random() * 4 }, scene);
+      part.parent = cloudRoot;
+      part.position.set((p - 1.5) * 4, 0, (Math.random() - 0.5) * 3);
+      part.material = cloudMat;
+    }
   }
 
   // ========================================================================
-  // VOXEL ARENA BUILDERS (High stepped walls like Poxel / Pixel Games)
+  // FIRST PERSON VIEWMODEL BLASTER RIG
+  // ========================================================================
+  weaponRoot = new BABYLON.TransformNode("WeaponRoot", scene);
+  weaponRoot.parent = camera;
+  weaponRoot.position.set(0.4, -0.32, 0.78);
+
+  const matPbrMetal = new BABYLON.PBRMaterial("wMetal", scene);
+  matPbrMetal.albedoColor = new BABYLON.Color3(0.18, 0.24, 0.35);
+  matPbrMetal.metallic = 0.85;
+  matPbrMetal.roughness = 0.25;
+
+  const matPbrGold = new BABYLON.PBRMaterial("wGold", scene);
+  matPbrGold.albedoColor = new BABYLON.Color3(1.0, 0.75, 0.1);
+  matPbrGold.metallic = 0.95;
+  matPbrGold.roughness = 0.15;
+
+  const wChassis = BABYLON.MeshBuilder.CreateBox("wChassis", { width: 0.18, height: 0.22, depth: 0.7 }, scene);
+  wChassis.parent = weaponRoot;
+  wChassis.material = matPbrMetal;
+
+  const wRail = BABYLON.MeshBuilder.CreateBox("wRail", { width: 0.12, height: 0.08, depth: 0.5 }, scene);
+  wRail.parent = weaponRoot;
+  wRail.position.set(0, 0.13, 0.05);
+  wRail.material = matPbrGold;
+
+  [-0.045, 0.045].forEach(bx => {
+    const b = BABYLON.MeshBuilder.CreateCylinder("wB", { height: 0.45, diameter: 0.08 }, scene);
+    b.parent = weaponRoot;
+    b.rotation.x = Math.PI / 2;
+    b.position.set(bx, 0.02, 0.48);
+    b.material = matPbrGold;
+  });
+
+  muzzleFlash = BABYLON.MeshBuilder.CreateSphere("MuzFlash", { diameter: 0.22 }, scene);
+  muzzleFlash.parent = weaponRoot;
+  muzzleFlash.position.set(0, 0.02, 0.75);
+  const mMat = new BABYLON.StandardMaterial("mFlash", scene);
+  mMat.emissiveColor = new BABYLON.Color3(0.0, 1.0, 1.0);
+  muzzleFlash.material = mMat;
+  muzzleFlash.isVisible = false;
+
+  // ========================================================================
+  // GROUNDED COLOSSEUM WALLS (Flush with Turf at y = 0.0)
   // ========================================================================
   function clearCurrentStage() {
     stageMeshes.forEach(m => m.dispose());
     stageMeshes = [];
     boneObstacles = [];
-    if (currentBoss && currentBoss.root) {
-      currentBoss.root.dispose();
-      currentBoss = null;
-    }
+    if (boss && boss.root) { boss.root.dispose(); boss = null; }
   }
 
-  // Build high stacked stepped voxel battlements along perimeter
-  function buildHighVoxelWalls(wallMat, trimMat) {
+  function buildGroundedColosseumWalls(wallTex, trimColor, foundationColor) {
     const hw = ARENA_W / 2;
     const hl = ARENA_L / 2;
 
-    // 1. Towering Main Perimeter Walls
-    function makeWallSegment(x, z, w, d) {
-      const wall = BABYLON.MeshBuilder.CreateBox("HighWall", { width: w, height: WALL_HEIGHT, depth: d }, scene);
-      wall.position.set(x, WALL_HEIGHT / 2, z);
+    const wallMat = new BABYLON.PBRMaterial("pbrWall", scene);
+    wallMat.albedoTexture = wallTex;
+    wallMat.metallic = 0.1;
+    wallMat.roughness = 0.75;
+
+    const trimMat = new BABYLON.PBRMaterial("pbrTrim", scene);
+    trimMat.albedoColor = trimColor;
+    trimMat.metallic = 0.2;
+    trimMat.roughness = 0.4;
+
+    const baseMat = new BABYLON.PBRMaterial("pbrBase", scene);
+    baseMat.albedoColor = foundationColor;
+    baseMat.metallic = 0.3;
+    baseMat.roughness = 0.6;
+
+    function makeWall(x, z, w, d) {
+      // Solid Foundation Block (Floor Level y=0 to y=2)
+      const base = BABYLON.MeshBuilder.CreateBox("WBase", { width: w + 1.2, height: 2.0, depth: d + 1.2 }, scene);
+      base.position.set(x, 1.0, z);
+      base.material = baseMat;
+
+      // Main High Wall (y=2 to y=WALL_H)
+      const wall = BABYLON.MeshBuilder.CreateBox("WallSeg", { width: w, height: WALL_H - 2, depth: d }, scene);
+      wall.position.set(x, 2.0 + (WALL_H - 2) / 2, z);
       wall.material = wallMat;
 
-      // Stepped Top Rampart
-      const rampart = BABYLON.MeshBuilder.CreateBox("Rampart", { width: w + 0.6, height: 1.5, depth: d + 0.6 }, scene);
-      rampart.position.set(x, WALL_HEIGHT + 0.75, z);
-      rampart.material = trimMat;
+      // Stepped Top Parapet Rail
+      const topRail = BABYLON.MeshBuilder.CreateBox("WallRail", { width: w + 0.8, height: 1.6, depth: d + 0.8 }, scene);
+      topRail.position.set(x, WALL_H + 0.8, z);
+      topRail.material = trimMat;
 
-      stageMeshes.push(wall, rampart);
+      shadowGen.addShadowCaster(base);
+      shadowGen.addShadowCaster(wall);
+      shadowGen.addShadowCaster(topRail);
+      stageMeshes.push(base, wall, topRail);
     }
 
-    makeWallSegment(0, -hl, ARENA_W, 2.5);
-    makeWallSegment(0, hl, ARENA_W, 2.5);
-    makeWallSegment(-hw, 0, 2.5, ARENA_L);
-    makeWallSegment(hw, 0, 2.5, ARENA_L);
+    makeWall(0, -hl, ARENA_W, 2.8);
+    makeWall(0, hl, ARENA_W, 2.8);
+    makeWall(-hw, 0, 2.8, ARENA_L);
+    makeWall(hw, 0, 2.8, ARENA_L);
 
-    // 2. High Towering Corner Bastions (Voxel Pillars)
+    // 4 Corner Bastions with Peaked Roofs (Anchored firmly at y=0)
     [[-hw, -hl], [hw, -hl], [-hw, hl], [hw, hl]].forEach(([cx, cz]) => {
-      const tower = BABYLON.MeshBuilder.CreateBox("CornerTower", { width: 7, height: WALL_HEIGHT + 6, depth: 7 }, scene);
-      tower.position.set(cx, (WALL_HEIGHT + 6) / 2, cz);
+      const towerBase = BABYLON.MeshBuilder.CreateBox("TBase", { width: 11, height: 2.2, depth: 11 }, scene);
+      towerBase.position.set(cx, 1.1, cz);
+      towerBase.material = baseMat;
+
+      const tower = BABYLON.MeshBuilder.CreateBox("TowerBody", { width: 9.5, height: WALL_H + 6, depth: 9.5 }, scene);
+      tower.position.set(cx, (WALL_H + 6) / 2, cz);
       tower.material = wallMat;
 
-      const towerCap = BABYLON.MeshBuilder.CreateBox("TowerCap", { width: 8, height: 2, depth: 8 }, scene);
-      towerCap.position.set(cx, WALL_HEIGHT + 7, cz);
-      towerCap.material = trimMat;
+      const roof = BABYLON.MeshBuilder.CreateCylinder("TowerRoof", { height: 8, diameterTop: 0, diameterBottom: 13, tessellation: 8 }, scene);
+      roof.position.set(cx, WALL_H + 10, cz);
+      roof.material = trimMat;
 
-      stageMeshes.push(tower, towerCap);
+      shadowGen.addShadowCaster(towerBase);
+      shadowGen.addShadowCaster(tower);
+      shadowGen.addShadowCaster(roof);
+      stageMeshes.push(towerBase, tower, roof);
     });
 
-    // 3. Voxel Crenellation Teeth Along the Top Edge
-    for (let x = -hw + 4; x <= hw - 4; x += 6) {
-      [-hl, hl].forEach(z => {
-        const cren = BABYLON.MeshBuilder.CreateBox("Cren", { width: 3, height: 2, depth: 2.8 }, scene);
-        cren.position.set(x, WALL_HEIGHT + 2.2, z);
-        cren.material = trimMat;
-        stageMeshes.push(cren);
+    // Hanging Banners
+    for (let z = -hl + 20; z <= hl - 20; z += 24) {
+      [-hw + 1.6, hw - 1.6].forEach(bx => {
+        const banner = BABYLON.MeshBuilder.CreateBox("Banner", { width: 0.2, height: 8, depth: 4.5 }, scene);
+        banner.position.set(bx, 10, z);
+        banner.material = trimMat;
+        stageMeshes.push(banner);
       });
     }
   }
 
-  // --- STAGE 1: VOXEL CASTLE COURTYARD ---
+  // ========================================================================
+  // STAGES
+  // ========================================================================
   function buildCastleStage() {
-    scene.clearColor = new BABYLON.Color4(0.48, 0.78, 0.98, 1.0);
-    fillLight.diffuse = new BABYLON.Color3(1.0, 0.98, 0.92);
+    scene.clearColor = new BABYLON.Color4(0.38, 0.74, 1.0, 1.0);
+    scene.fogColor = new BABYLON.Color3(0.38, 0.74, 1.0);
 
-    // Checkered Green Turf Floor
-    const ground = BABYLON.MeshBuilder.CreateGround("Ground", { width: ARENA_W, height: ARENA_L }, scene);
-    const gMat = new BABYLON.StandardMaterial("GroundMat", scene);
-    gMat.diffuseColor = new BABYLON.Color3(0.45, 0.82, 0.28);
-    ground.material = gMat;
-    stageMeshes.push(ground);
+    const floor = BABYLON.MeshBuilder.CreateGround("Floor", { width: ARENA_W, height: ARENA_L }, scene);
+    const fMat = new BABYLON.PBRMaterial("fMat", scene);
+    const turfTex = createProceduralTexture('turf-grass');
+    turfTex.uScale = 12; turfTex.vScale = 12;
+    fMat.albedoTexture = turfTex;
+    fMat.roughness = 0.8;
+    floor.material = fMat;
+    floor.receiveShadows = true;
+    stageMeshes.push(floor);
 
-    // High Castle Stone Walls + Crimson Battlements
-    const stoneMat = new BABYLON.StandardMaterial("CastleStone", scene);
-    stoneMat.diffuseColor = new BABYLON.Color3(0.85, 0.88, 0.92);
+    const stoneTex = createProceduralTexture('stone-blocks');
+    stoneTex.uScale = 8; stoneTex.vScale = 4;
+    buildGroundedColosseumWalls(stoneTex, new BABYLON.Color3(0.92, 0.2, 0.18), new BABYLON.Color3(0.2, 0.22, 0.28));
 
-    const redTrim = new BABYLON.StandardMaterial("RedTrim", scene);
-    redTrim.diffuseColor = new BABYLON.Color3(0.9, 0.22, 0.18);
-
-    buildHighVoxelWalls(stoneMat, redTrim);
-
-    currentBoss = createCastleBoss();
+    boss = createGroundedBoss(0, "CITADEL GOLEM", 260, new BABYLON.Color3(0.55, 0.62, 0.75));
   }
 
-  // --- STAGE 2: DESERT CANYON (High Sandstone Walls & Jumpable Bone Ribs) ---
   function buildDesertStage() {
     scene.clearColor = new BABYLON.Color4(0.96, 0.82, 0.52, 1.0);
-    fillLight.diffuse = new BABYLON.Color3(1.0, 0.88, 0.7);
+    scene.fogColor = new BABYLON.Color3(0.96, 0.82, 0.52);
 
-    const ground = BABYLON.MeshBuilder.CreateGround("DesertGround", { width: ARENA_W, height: ARENA_L }, scene);
-    const gMat = new BABYLON.StandardMaterial("DGround", scene);
-    gMat.diffuseColor = new BABYLON.Color3(0.92, 0.72, 0.38);
-    ground.material = gMat;
-    stageMeshes.push(ground);
+    const floor = BABYLON.MeshBuilder.CreateGround("Floor", { width: ARENA_W, height: ARENA_L }, scene);
+    const fMat = new BABYLON.PBRMaterial("fMat", scene);
+    const sandTex = createProceduralTexture('desert-sand');
+    sandTex.uScale = 12; sandTex.vScale = 12;
+    fMat.albedoTexture = sandTex;
+    fMat.roughness = 0.9;
+    floor.material = fMat;
+    floor.receiveShadows = true;
+    stageMeshes.push(floor);
 
-    const sandstoneMat = new BABYLON.StandardMaterial("SSand", scene);
-    sandstoneMat.diffuseColor = new BABYLON.Color3(0.78, 0.52, 0.28);
+    buildGroundedColosseumWalls(sandTex, new BABYLON.Color3(0.68, 0.42, 0.2), new BABYLON.Color3(0.4, 0.25, 0.12));
 
-    const darkSandMat = new BABYLON.StandardMaterial("SDark", scene);
-    darkSandMat.diffuseColor = new BABYLON.Color3(0.58, 0.36, 0.18);
+    // Jumpable Bone Rib Obstacles (Grounded on floor)
+    const boneMat = new BABYLON.PBRMaterial("bMat", scene);
+    boneMat.albedoColor = new BABYLON.Color3(0.96, 0.94, 0.86);
+    boneMat.roughness = 0.45;
 
-    buildHighVoxelWalls(sandstoneMat, darkSandMat);
+    for (let i = 0; i < 16; i++) {
+      const ang = (i / 16) * Math.PI * 2;
+      const dist = 22 + (i % 2) * 12;
+      const bx = Math.cos(ang) * dist;
+      const bz = Math.sin(ang) * dist;
 
-    // Jumpable Bone Obstacles
-    const boneMat = new BABYLON.StandardMaterial("BoneMat", scene);
-    boneMat.diffuseColor = new BABYLON.Color3(0.96, 0.94, 0.86);
-
-    for (let i = 0; i < 14; i++) {
-      const bx = (Math.random() - 0.5) * (ARENA_W - 14);
-      const bz = (Math.random() - 0.5) * (ARENA_L - 18);
-      if (Math.hypot(bx, bz) < 10) continue;
-
-      const rib = BABYLON.MeshBuilder.CreateTorus("BoneRib", { diameter: 5.2, thickness: 0.9, tessellation: 12 }, scene);
-      rib.position.set(bx, 0.4, bz);
+      const rib = BABYLON.MeshBuilder.CreateTorus("BoneRib", { diameter: 5.6, thickness: 1.0, tessellation: 16 }, scene);
+      rib.position.set(bx, 0.5, bz);
       rib.rotation.z = Math.PI / 2;
       rib.rotation.y = Math.random() * Math.PI;
       rib.material = boneMat;
+      shadowGen.addShadowCaster(rib);
       stageMeshes.push(rib);
 
-      boneObstacles.push({ x: bx, z: bz, radius: 2.8, jumpHeight: 2.2 });
+      boneObstacles.push({ x: bx, z: bz, radius: 2.8, jumpH: 2.2 });
     }
 
-    currentBoss = createDesertBoss();
+    boss = createGroundedBoss(1, "DUNE COLOSSUS", 340, new BABYLON.Color3(0.88, 0.55, 0.24));
   }
 
-  // --- STAGE 3: JUNGLE CLEARING (Towering Forest Walls & Visual Bushes) ---
   function buildJungleStage() {
     scene.clearColor = new BABYLON.Color4(0.48, 0.85, 0.65, 1.0);
-    fillLight.diffuse = new BABYLON.Color3(0.9, 1.0, 0.85);
+    scene.fogColor = new BABYLON.Color3(0.48, 0.85, 0.65);
 
-    const ground = BABYLON.MeshBuilder.CreateGround("JungleGround", { width: ARENA_W, height: ARENA_L }, scene);
-    const gMat = new BABYLON.StandardMaterial("JGround", scene);
-    gMat.diffuseColor = new BABYLON.Color3(0.2, 0.65, 0.28);
-    ground.material = gMat;
-    stageMeshes.push(ground);
+    const floor = BABYLON.MeshBuilder.CreateGround("Floor", { width: ARENA_W, height: ARENA_L }, scene);
+    const fMat = new BABYLON.PBRMaterial("fMat", scene);
+    const mossTex = createProceduralTexture('jungle-moss');
+    mossTex.uScale = 12; mossTex.vScale = 12;
+    fMat.albedoTexture = mossTex;
+    fMat.roughness = 0.75;
+    floor.material = fMat;
+    floor.receiveShadows = true;
+    stageMeshes.push(floor);
 
-    const woodWallMat = new BABYLON.StandardMaterial("WoodWall", scene);
-    woodWallMat.diffuseColor = new BABYLON.Color3(0.38, 0.24, 0.14);
+    buildGroundedColosseumWalls(mossTex, new BABYLON.Color3(0.2, 0.78, 0.32), new BABYLON.Color3(0.12, 0.35, 0.16));
 
-    const foliageTrim = new BABYLON.StandardMaterial("FoliageTrim", scene);
-    foliageTrim.diffuseColor = new BABYLON.Color3(0.18, 0.78, 0.32);
+    const bushMat = new BABYLON.PBRMaterial("bushMat", scene);
+    bushMat.albedoColor = new BABYLON.Color3(0.18, 0.75, 0.3);
+    bushMat.roughness = 0.7;
 
-    buildHighVoxelWalls(woodWallMat, foliageTrim);
-
-    // Foliage Bushes (Visual concealment only)
     for (let i = 0; i < 22; i++) {
-      const fx = (Math.random() - 0.5) * (ARENA_W - 14);
-      const fz = (Math.random() - 0.5) * (ARENA_L - 18);
-      if (Math.hypot(fx, fz) < 10) continue;
+      const ang = (i / 22) * Math.PI * 2;
+      const dist = 24 + (i % 3) * 8;
+      const fx = Math.cos(ang) * dist;
+      const fz = Math.sin(ang) * dist;
 
-      const bushNode = new BABYLON.TransformNode("BushRoot", scene);
-      bushNode.position.set(fx, 0, fz);
-
-      for (let b = 0; b < 3; b++) {
-        const clump = BABYLON.MeshBuilder.CreateBox("LeafBox", { size: 2.2 + Math.random() }, scene);
-        clump.parent = bushNode;
-        clump.position.set((Math.random() - 0.5) * 1.5, 1.1 + Math.random() * 0.4, (Math.random() - 0.5) * 1.5);
-        clump.material = foliageTrim;
-      }
-      stageMeshes.push(bushNode);
+      const clump = BABYLON.MeshBuilder.CreateSphere("BushClump", { diameter: 3.4 }, scene);
+      clump.position.set(fx, 1.4, fz);
+      clump.material = bushMat;
+      shadowGen.addShadowCaster(clump);
+      stageMeshes.push(clump);
     }
 
-    currentBoss = createJungleBoss();
+    boss = createGroundedBoss(2, "VERDANT STALKER", 420, new BABYLON.Color3(0.18, 0.55, 0.22));
   }
 
   // ========================================================================
-  // ANIMATED BOSSES
+  // GROUNDED CENTER BOSS (Pivoting at y = 0.0)
   // ========================================================================
-  function createCastleBoss() {
-    const root = new BABYLON.TransformNode("CastleBoss", scene);
-    root.position.set(0, 0, -22);
+  function createGroundedBoss(type, name, hp, color) {
+    const root = new BABYLON.TransformNode("BossRoot", scene);
+    root.position.set(0, 0, 0); // Exact center of the arena
 
-    const matStone = new BABYLON.StandardMaterial("BStone", scene);
-    matStone.diffuseColor = new BABYLON.Color3(0.55, 0.62, 0.75);
+    const bMat = new BABYLON.PBRMaterial("bMat", scene);
+    bMat.albedoColor = color;
+    bMat.metallic = 0.35;
+    bMat.roughness = 0.4;
 
-    const matGold = new BABYLON.StandardMaterial("BGold", scene);
-    matGold.diffuseColor = new BABYLON.Color3(1.0, 0.75, 0.1);
+    const goldMat = new BABYLON.PBRMaterial("bGold", scene);
+    goldMat.albedoColor = new BABYLON.Color3(1.0, 0.75, 0.1);
+    goldMat.metallic = 0.9;
+    goldMat.roughness = 0.2;
 
-    const body = BABYLON.MeshBuilder.CreateBox("BBody", { width: 4.6, height: 4.8, depth: 4.0 }, scene);
+    const daisMat = new BABYLON.PBRMaterial("daisMat", scene);
+    daisMat.albedoColor = new BABYLON.Color3(0.22, 0.24, 0.3);
+    daisMat.metallic = 0.2;
+    daisMat.roughness = 0.6;
+
+    // Central Stone Dais (Resting on turf: y=0 to y=1.2)
+    const dais = BABYLON.MeshBuilder.CreateCylinder("Dais", { height: 1.2, diameter: 14, tessellation: 24 }, scene);
+    dais.position.set(0, 0.6, 0);
+    dais.material = daisMat;
+    dais.receiveShadows = true;
+    stageMeshes.push(dais);
+
+    // Boss Body Rig
+    const body = BABYLON.MeshBuilder.CreateBox("bBody", { width: 5.2, height: 5.8, depth: 4.8 }, scene);
     body.parent = root;
-    body.position.y = 3.8;
-    body.material = matStone;
+    body.position.y = 1.2 + 2.9;
+    body.material = bMat;
+    shadowGen.addShadowCaster(body);
 
-    const crown = BABYLON.MeshBuilder.CreateBox("BCrown", { width: 3.2, height: 1.8, depth: 3.2 }, scene);
+    const crown = BABYLON.MeshBuilder.CreateBox("bCrown", { width: 3.4, height: 1.8, depth: 3.4 }, scene);
     crown.parent = body;
-    crown.position.y = 3.2;
-    crown.material = matGold;
+    crown.position.y = 3.6;
+    crown.material = goldMat;
+    shadowGen.addShadowCaster(crown);
 
-    [-1.8, 1.8].forEach(x => {
-      const cannon = BABYLON.MeshBuilder.CreateBox("BCannon", { width: 0.8, height: 0.8, depth: 3.5 }, scene);
+    // Dual Siege Cannons
+    [-2.2, 2.2].forEach(x => {
+      const cannon = BABYLON.MeshBuilder.CreateCylinder("bCannon", { height: 4.2, diameter: 0.9 }, scene);
       cannon.parent = body;
-      cannon.position.set(x, 0.2, 2.2);
-      cannon.material = matGold;
+      cannon.rotation.x = Math.PI / 2;
+      cannon.position.set(x, 0, 2.5);
+      cannon.material = goldMat;
+      shadowGen.addShadowCaster(cannon);
     });
 
     return {
-      root, body, type: 0, name: "CITADEL GUARDIAN",
-      speed: 6.0, attackTimer: 1.2, radius: 3.4, hp: 240, maxHp: 240, animTick: 0
-    };
-  }
-
-  function createDesertBoss() {
-    const root = new BABYLON.TransformNode("DesertBoss", scene);
-    root.position.set(0, 0, -22);
-
-    const matChitin = new BABYLON.StandardMaterial("BChitin", scene);
-    matChitin.diffuseColor = new BABYLON.Color3(0.88, 0.55, 0.24);
-
-    const matAmber = new BABYLON.StandardMaterial("BAmber", scene);
-    matAmber.diffuseColor = new BABYLON.Color3(1.0, 0.4, 0.1);
-
-    const body = BABYLON.MeshBuilder.CreateBox("DBody", { width: 5.2, height: 4.8, depth: 5.2 }, scene);
-    body.parent = root;
-    body.position.y = 3.4;
-    body.material = matChitin;
-
-    const horn = BABYLON.MeshBuilder.CreateBox("DHorn", { width: 1.4, height: 1.4, depth: 3.8 }, scene);
-    horn.parent = body;
-    horn.position.set(0, 0.2, 3.4);
-    horn.material = matAmber;
-
-    return {
-      root, body, type: 1, name: "DUNE COLOSSUS",
-      speed: 9.5, attackTimer: 0.7, radius: 3.4, hp: 320, maxHp: 320, animTick: 0
-    };
-  }
-
-  function createJungleBoss() {
-    const root = new BABYLON.TransformNode("JungleBoss", scene);
-    root.position.set(0, 0, -22);
-
-    const matBark = new BABYLON.StandardMaterial("BBark", scene);
-    matBark.diffuseColor = new BABYLON.Color3(0.18, 0.55, 0.22);
-
-    const matBloom = new BABYLON.StandardMaterial("BBloom", scene);
-    matBloom.diffuseColor = new BABYLON.Color3(1.0, 0.15, 0.5);
-
-    const body = BABYLON.MeshBuilder.CreateBox("JBody", { width: 4.2, height: 5.0, depth: 3.4 }, scene);
-    body.parent = root;
-    body.position.y = 3.8;
-    body.material = matBark;
-
-    const head = BABYLON.MeshBuilder.CreateBox("JHead", { size: 2.4 }, scene);
-    head.parent = body;
-    head.position.y = 3.2;
-    head.material = matBloom;
-
-    return {
-      root, body, type: 2, name: "VERDANT STALKER",
-      speed: 8.0, attackTimer: 1.4, radius: 3.4, hp: 400, maxHp: 400, animTick: 0
+      root, body, type, name,
+      attackTimer: 1.2,
+      hp, maxHp: hp, radius: 4.0
     };
   }
 
   function loadStage(idx) {
     clearCurrentStage();
-    state.stageIndex = idx % 3;
-    if (state.stageIndex === 0) buildCastleStage();
-    else if (state.stageIndex === 1) buildDesertStage();
+    state.stage = idx % 3;
+    if (state.stage === 0) buildCastleStage();
+    else if (state.stage === 1) buildDesertStage();
     else buildJungleStage();
 
-    state.bossHp = currentBoss.maxHp;
-    state.bossMaxHp = currentBoss.maxHp;
+    state.bossHp = boss.hp;
+    state.maxBossHp = boss.maxHp;
     updateHUD();
   }
 
   // ========================================================================
-  // PROJECTILES & SHOOTING
+  // PROJECTILE SYSTEM
   // ========================================================================
-  function shootProjectile(origin, dir, isPlayer = false, color = new BABYLON.Color3(0, 1, 1), speed = 55) {
-    const box = BABYLON.MeshBuilder.CreateBox("Bullet", { size: 0.6 }, scene);
-    const bMat = new BABYLON.StandardMaterial("BMat", scene);
-    bMat.emissiveColor = color;
-    box.material = bMat;
+  function shoot(origin, dir, isPlayer = false, speed = 55) {
+    const box = BABYLON.MeshBuilder.CreateBox("Bullet", { size: 0.7 }, scene);
+    const mat = new BABYLON.StandardMaterial("bMat", scene);
+    mat.emissiveColor = isPlayer ? new BABYLON.Color3(0, 1, 1) : new BABYLON.Color3(1, 0.2, 0.1);
+    box.material = mat;
     box.position.copyFrom(origin);
 
-    projectiles.push({
+    bullets.push({
       mesh: box,
       isPlayer,
       dir: dir.normalize(),
       speed,
-      life: 2.6
+      life: 2.8
     });
 
     playSound(isPlayer ? 'fire' : 'enemy_fire');
   }
 
   function playerFire() {
-    if (weaponRecoil > 0.05) return;
-    weaponRecoil = 0.35;
-    muzzleMesh.isVisible = true;
-    setTimeout(() => { muzzleMesh.isVisible = false; }, 45);
+    if (recoil > 0.05) return;
+    recoil = 0.38;
+    muzzleFlash.isVisible = true;
+    setTimeout(() => { muzzleFlash.isVisible = false; }, 45);
 
-    // Fire directly into the center crosshair
-    const forward = camera.getForwardRay().direction;
-    const spawnPos = camera.position.add(forward.scale(1.2));
-    shootProjectile(spawnPos, forward, true, new BABYLON.Color3(0.0, 0.95, 1.0), 65);
-  }
-
-  function advanceStage() {
-    if (state.isTransitioning) return;
-    state.isTransitioning = true;
-    playSound('fanfare');
-
-    const fade = document.getElementById('fps-stage-fade');
-    if (fade) fade.style.opacity = '1';
-
-    setTimeout(() => {
-      state.bossesDefeated++;
-      loadStage(state.bossesDefeated);
-      projectiles.forEach(p => p.mesh.dispose());
-      projectiles = [];
-      camera.position.set(0, 2.0, 24);
-
-      if (fade) fade.style.opacity = '0';
-      state.isTransitioning = false;
-    }, 600);
+    const fwd = camera.getForwardRay().direction;
+    const origin = camera.position.add(fwd.scale(1.2));
+    shoot(origin, fwd, true, 68);
   }
 
   // ========================================================================
-  // DUAL CONTROLS: DESKTOP & MOBILE
+  // CONTROLS INTERFACING (Desktop & Mobile)
   // ========================================================================
   function setupControls() {
     const keys = {};
-
     window.addEventListener('keydown', (e) => {
       keys[e.code] = true;
-      if (e.code === 'Space' && Math.abs(camera.position.y - 2.0) < 0.1) {
-        playerVy = 13.0;
-      }
-      if (e.key === 'Shift' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
-        playerFire();
-      }
+      if (e.code === 'Space' && Math.abs(camera.position.y - 2.0) < 0.1) playerVy = 13.0;
+      if (e.key === 'Shift' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') playerFire();
     });
+    window.addEventListener('keyup', (e) => keys[e.code] = false);
 
-    window.addEventListener('keyup', (e) => {
-      keys[e.code] = false;
-    });
-
-    // Pointer Lock on Canvas Click
     canvas.addEventListener('click', () => {
       if (!state.isMobile && !isPointerLocked) {
         canvas.requestPointerLock = canvas.requestPointerLock || canvas.mozRequestPointerLock;
@@ -597,9 +657,7 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 
     canvas.addEventListener('pointerdown', (e) => {
-      if (e.button === 0 && !state.isMobile) {
-        playerFire();
-      }
+      if (e.button === 0 && !state.isMobile) playerFire();
     });
 
     scene.registerBeforeRender(() => {
@@ -609,43 +667,42 @@ window.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    // Mobile Virtual Joystick & Touch Controls
     if (state.isMobile) {
-      const mobUI = document.getElementById('mobile-ui');
+      const mobUI = document.getElementById('so-mobile-ui');
       if (mobUI) mobUI.style.display = 'block';
 
-      const base = document.getElementById('joystick-base');
-      const knob = document.getElementById('joystick-knob');
-      let touchId = null, baseRect = null;
+      const base = document.getElementById('so-joy-base');
+      const stick = document.getElementById('so-joy-stick');
+      let tid = null, rect = null;
 
       if (base) {
         base.addEventListener('touchstart', (e) => {
           e.preventDefault();
-          touchId = e.changedTouches[0].identifier;
-          baseRect = base.getBoundingClientRect();
+          tid = e.changedTouches[0].identifier;
+          rect = base.getBoundingClientRect();
         }, { passive: false });
 
         window.addEventListener('touchmove', (e) => {
-          if (touchId === null) return;
+          if (tid === null) return;
           for (let t of e.changedTouches) {
-            if (t.identifier === touchId) {
-              const dx = t.clientX - (baseRect.left + baseRect.width / 2);
-              const dy = t.clientY - (baseRect.top + baseRect.height / 2);
+            if (t.identifier === tid) {
+              const dx = t.clientX - (rect.left + rect.width / 2);
+              const dy = t.clientY - (rect.top + rect.height / 2);
               const dist = Math.min(48, Math.hypot(dx, dy));
-              const angle = Math.atan2(dy, dx);
+              const ang = Math.atan2(dy, dx);
 
-              if (knob) knob.style.transform = `translate(calc(-50% + ${Math.cos(angle) * dist}px), calc(-50% + ${Math.sin(angle) * dist}px))`;
-              input.right = (Math.cos(angle) * dist) / 48;
-              input.forward = -(Math.sin(angle) * dist) / 48;
+              stick.style.transform = `translate(calc(-50% + ${Math.cos(ang) * dist}px), calc(-50% + ${Math.sin(ang) * dist}px))`;
+              input.right = (Math.cos(ang) * dist) / 48;
+              input.forward = -(Math.sin(ang) * dist) / 48;
             }
           }
         }, { passive: false });
 
         const endTouch = (e) => {
           for (let t of e.changedTouches) {
-            if (t.identifier === touchId) {
-              touchId = null;
-              if (knob) knob.style.transform = 'translate(-50%, -50%)';
+            if (t.identifier === tid) {
+              tid = null;
+              stick.style.transform = 'translate(-50%, -50%)';
               input.forward = 0; input.right = 0;
             }
           }
@@ -654,7 +711,7 @@ window.addEventListener('DOMContentLoaded', () => {
         window.addEventListener('touchcancel', endTouch);
       }
 
-      const btnJump = document.getElementById('btn-jump');
+      const btnJump = document.getElementById('so-btn-jump');
       if (btnJump) {
         btnJump.addEventListener('touchstart', (e) => {
           e.preventDefault();
@@ -662,7 +719,7 @@ window.addEventListener('DOMContentLoaded', () => {
         });
       }
 
-      const btnFire = document.getElementById('btn-fire');
+      const btnFire = document.getElementById('so-btn-fire');
       if (btnFire) {
         btnFire.addEventListener('touchstart', (e) => {
           e.preventDefault();
@@ -673,187 +730,198 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   // ========================================================================
-  // MAIN GAME ENGINE LOOP
+  // RUNTIME LOOP & CIRCLING BOSS COMBAT
   // ========================================================================
-  const currentScene = createScene();
+  setupDOMOverlay();
   setupControls();
+  loadStage(0);
 
   engine.runRenderLoop(() => {
     const dt = Math.min(engine.getDeltaTime() / 1000, 0.1);
 
-    if (!state.isGameOver) {
-      // 1. Move FPS Player Kinematics
-      const moveMag = Math.hypot(input.forward, input.right);
-      const camForward = camera.getForwardRay().direction;
-      camForward.y = 0;
-      camForward.normalize();
+    // Kinematics Movement
+    const moveMag = Math.hypot(input.forward, input.right);
+    const fwd = camera.getForwardRay().direction;
+    fwd.y = 0; fwd.normalize();
+    const right = new BABYLON.Vector3(fwd.z, 0, -fwd.x);
 
-      const camRight = new BABYLON.Vector3(camForward.z, 0, -camForward.x);
+    if (moveMag > 0.05) {
+      const moveDir = fwd.scale(input.forward).add(right.scale(input.right)).normalize();
+      const nx = camera.position.x + moveDir.x * 18 * dt;
+      const nz = camera.position.z + moveDir.z * 18 * dt;
 
-      if (moveMag > 0.05) {
-        const moveDir = camForward.scale(input.forward).add(camRight.scale(input.right)).normalize();
-        const nextX = camera.position.x + moveDir.x * 16 * dt;
-        const nextZ = camera.position.z + moveDir.z * 16 * dt;
+      // Prevent player walking into the central boss dais
+      const distToCenter = Math.hypot(nx, nz);
+      let blocked = distToCenter < 7.2;
 
-        // Bone Obstacle Collision (Desert)
-        let blocked = false;
-        for (let b of boneObstacles) {
-          if (Math.hypot(nextX - b.x, nextZ - b.z) < 1.6 + b.radius) {
-            if (camera.position.y < b.jumpHeight + 1.2) {
-              blocked = true;
-              break;
-            }
-          }
-        }
-
-        if (!blocked) {
-          camera.position.x = nextX;
-          camera.position.z = nextZ;
-        }
-
-        // Viewmodel Sway
-        walkBob += dt * 10;
-        weaponRoot.position.y = -0.32 + Math.sin(walkBob) * 0.02;
-        weaponRoot.position.x = 0.38 + Math.cos(walkBob * 0.5) * 0.015;
-      } else {
-        weaponRoot.position.y = -0.32;
-        weaponRoot.position.x = 0.38;
-      }
-
-      // Constrain inside Arena bounds
-      camera.position.x = Math.max(-ARENA_W / 2 + 3, Math.min(ARENA_W / 2 - 3, camera.position.x));
-      camera.position.z = Math.max(-ARENA_L / 2 + 3, Math.min(ARENA_L / 2 - 3, camera.position.z));
-
-      // Gravity & Vertical Jumping
-      camera.position.y += playerVy * dt;
-      if (camera.position.y > 2.0) {
-        playerVy -= 32 * dt;
-      } else {
-        camera.position.y = 2.0;
-        playerVy = 0;
-      }
-
-      // Weapon Recoil Recovery
-      if (weaponRecoil > 0) {
-        weaponRoot.position.z = 0.75 - weaponRecoil * 0.35;
-        weaponRoot.rotation.x = -weaponRecoil * 0.45;
-        weaponRecoil -= dt * 2.2;
-      } else {
-        weaponRoot.position.z = 0.75;
-        weaponRoot.rotation.x = 0;
-      }
-
-      // 2. Boss AI
-      if (currentBoss && !state.isTransitioning) {
-        const toPlayer = camera.position.subtract(currentBoss.root.position);
-        toPlayer.y = 0;
-        const dist = toPlayer.length();
-        toPlayer.normalize();
-
-        currentBoss.root.rotation.y = Math.atan2(toPlayer.x, toPlayer.z);
-        currentBoss.animTick += dt * 4;
-        currentBoss.body.position.y = 3.6 + Math.sin(currentBoss.animTick) * 0.4;
-
-        if (dist > 14) {
-          currentBoss.root.position.x += toPlayer.x * currentBoss.speed * dt;
-          currentBoss.root.position.z += toPlayer.z * currentBoss.speed * dt;
-        }
-
-        currentBoss.attackTimer -= dt;
-        if (currentBoss.attackTimer <= 0) {
-          const spawnPos = currentBoss.root.position.add(new BABYLON.Vector3(0, 3.2, 0));
-          if (currentBoss.type === 0) {
-            // Citadel Guardian: Triple Shells
-            for (let a = -0.25; a <= 0.25; a += 0.25) {
-              const dir = new BABYLON.Vector3(toPlayer.x + a * toPlayer.z, 0, toPlayer.z - a * toPlayer.x);
-              shootProjectile(spawnPos, dir, false, new BABYLON.Color3(1.0, 0.2, 0.1), 35);
-            }
-            currentBoss.attackTimer = 1.4;
-          } else if (currentBoss.type === 1) {
-            // Dune Colossus: Rapid Sand Burst
-            shootProjectile(spawnPos, toPlayer, false, new BABYLON.Color3(1.0, 0.6, 0.0), 45);
-            currentBoss.attackTimer = 0.45;
-          } else {
-            // Verdant Stalker: Radial Nova Blast
-            for (let i = 0; i < 10; i++) {
-              const ang = (i / 10) * Math.PI * 2;
-              shootProjectile(spawnPos, new BABYLON.Vector3(Math.cos(ang), 0, Math.sin(ang)), false, new BABYLON.Color3(0.2, 0.9, 0.3), 28);
-            }
-            currentBoss.attackTimer = 2.0;
+      for (let b of boneObstacles) {
+        if (Math.hypot(nx - b.x, nz - b.z) < 1.6 + b.radius) {
+          if (camera.position.y < b.jumpH + 1.2) {
+            blocked = true; break;
           }
         }
       }
 
-      // 3. Projectiles Simulation
-      for (let i = projectiles.length - 1; i >= 0; i--) {
-        const p = projectiles[i];
-        p.mesh.position.addInPlace(p.dir.scale(p.speed * dt));
-        p.life -= dt;
+      if (!blocked) {
+        camera.position.x = nx;
+        camera.position.z = nz;
+      }
 
-        if (Math.abs(p.mesh.position.x) > ARENA_W / 2 || Math.abs(p.mesh.position.z) > ARENA_L / 2 || p.life <= 0) {
-          p.mesh.dispose();
-          projectiles.splice(i, 1);
-          continue;
-        }
+      // Viewmodel Sway
+      walkBob += dt * 10;
+      weaponRoot.position.y = -0.32 + Math.sin(walkBob) * 0.02;
+      weaponRoot.position.x = 0.4 + Math.cos(walkBob * 0.5) * 0.015;
+    } else {
+      weaponRoot.position.y = -0.32;
+    }
 
-        // Bones in Desert block enemy bullets
-        if (!p.isPlayer) {
-          let hitBone = false;
-          for (let b of boneObstacles) {
-            if (Math.hypot(p.mesh.position.x - b.x, p.mesh.position.z - b.z) < b.radius) {
-              hitBone = true;
-              break;
-            }
+    // Arena Perimeter Bounds
+    camera.position.x = Math.max(-ARENA_W / 2 + 4, Math.min(ARENA_W / 2 - 4, camera.position.x));
+    camera.position.z = Math.max(-ARENA_L / 2 + 4, Math.min(ARENA_L / 2 - 4, camera.position.z));
+
+    // Jump Physics
+    camera.position.y += playerVy * dt;
+    if (camera.position.y > 2.0) {
+      playerVy -= 32 * dt;
+    } else {
+      camera.position.y = 2.0;
+      playerVy = 0;
+    }
+
+    // Weapon Recoil Recovery
+    if (recoil > 0) {
+      weaponRoot.position.z = 0.78 - recoil * 0.35;
+      weaponRoot.rotation.x = -recoil * 0.45;
+      recoil -= dt * 2.2;
+    } else {
+      weaponRoot.position.z = 0.78;
+      weaponRoot.rotation.x = 0;
+    }
+
+    // ======================================================================
+    // BOSS AI: Anchored at Center & Pivot Tracking
+    // ======================================================================
+    if (boss && !state.isTransitioning) {
+      const toP = camera.position.subtract(boss.root.position);
+      toP.y = 0;
+      toP.normalize();
+
+      boss.root.rotation.y = Math.atan2(toP.x, toP.z);
+
+      boss.attackTimer -= dt;
+      if (boss.attackTimer <= 0) {
+        const origin = new BABYLON.Vector3(0, 4.2, 0);
+
+        if (boss.type === 0) {
+          // Stage 1 (Citadel Golem): Triple Mortar Spread
+          for (let a = -0.25; a <= 0.25; a += 0.25) {
+            const dir = new BABYLON.Vector3(toP.x + a * toP.z, 0, toP.z - a * toP.x);
+            shoot(origin, dir, false, 36);
           }
-          if (hitBone) {
-            p.mesh.dispose();
-            projectiles.splice(i, 1);
-            continue;
+          boss.attackTimer = 1.3;
+        } else if (boss.type === 1) {
+          // Stage 2 (Dune Colossus): Fast Shards
+          shoot(origin, toP, false, 48);
+          boss.attackTimer = 0.45;
+        } else {
+          // Stage 3 (Verdant Stalker FINAL BOSS): RAPID 5-BULLET STREAM
+          for (let f = 0; f < 5; f++) {
+            setTimeout(() => {
+              if (boss && !state.isTransitioning) {
+                const freshToP = camera.position.subtract(boss.root.position);
+                freshToP.y = 0;
+                shoot(new BABYLON.Vector3(0, 4.2, 0), freshToP.normalize(), false, 55);
+              }
+            }, f * 110);
           }
-        }
-
-        // Player bullet hits Boss
-        if (p.isPlayer && currentBoss) {
-          const distToBoss = Math.hypot(p.mesh.position.x - currentBoss.root.position.x, p.mesh.position.z - currentBoss.root.position.z);
-          if (distToBoss < currentBoss.radius) {
-            state.bossHp -= 14;
-            playSound('hit');
-            p.mesh.dispose();
-            projectiles.splice(i, 1);
-
-            if (state.bossHp <= 0) advanceStage();
-            updateHUD();
-            continue;
-          }
-        }
-
-        // Boss bullet hits Player
-        if (!p.isPlayer) {
-          const distToPlayer = Math.hypot(p.mesh.position.x - camera.position.x, p.mesh.position.z - camera.position.z);
-          if (distToPlayer < 1.6) {
-            state.playerHp -= 12;
-            playSound('hit');
-            p.mesh.dispose();
-            projectiles.splice(i, 1);
-
-            if (state.playerHp <= 0) {
-              // Instant Restart
-              state.playerHp = state.playerMaxHp;
-              state.bossesDefeated = 0;
-              loadStage(0);
-              camera.position.set(0, 2.0, 24);
-            }
-            updateHUD();
-            continue;
-          }
+          boss.attackTimer = 2.0;
         }
       }
     }
 
-    currentScene.render();
+    // ======================================================================
+    // PROJECTILE SIMULATION & DAMAGE
+    // ======================================================================
+    for (let i = bullets.length - 1; i >= 0; i--) {
+      const b = bullets[i];
+      b.mesh.position.addInPlace(b.dir.scale(b.speed * dt));
+      b.life -= dt;
+
+      if (Math.abs(b.mesh.position.x) > ARENA_W / 2 || Math.abs(b.mesh.position.z) > ARENA_L / 2 || b.life <= 0) {
+        b.mesh.dispose();
+        bullets.splice(i, 1);
+        continue;
+      }
+
+      // Stage 2 Bones Block Bullets
+      if (!b.isPlayer) {
+        let hitBone = false;
+        for (let o of boneObstacles) {
+          if (Math.hypot(b.mesh.position.x - o.x, b.mesh.position.z - o.z) < o.radius) {
+            hitBone = true; break;
+          }
+        }
+        if (hitBone) {
+          b.mesh.dispose();
+          bullets.splice(i, 1);
+          continue;
+        }
+      }
+
+      // Hit Boss at Center
+      if (b.isPlayer && boss) {
+        if (Math.hypot(b.mesh.position.x, b.mesh.position.z) < boss.radius) {
+          state.bossHp -= 16;
+          playSound('hit');
+          b.mesh.dispose();
+          bullets.splice(i, 1);
+
+          if (state.bossHp <= 0) {
+            state.score++;
+            playSound('fanfare');
+            const fade = document.getElementById('so-fade-curtain');
+            if (fade) fade.style.opacity = '1';
+            state.isTransitioning = true;
+            setTimeout(() => {
+              loadStage(state.score);
+              camera.position.set(0, 2.0, 36);
+              if (fade) fade.style.opacity = '0';
+              state.isTransitioning = false;
+            }, 500);
+          }
+          updateHUD();
+          continue;
+        }
+      }
+
+      // Hit Orbiting Player
+      if (!b.isPlayer) {
+        if (Math.hypot(b.mesh.position.x - camera.position.x, b.mesh.position.z - camera.position.z) < 1.6) {
+          state.playerHp -= 14;
+          playSound('hit');
+          b.mesh.dispose();
+          bullets.splice(i, 1);
+
+          const flash = document.getElementById('so-hit-flash');
+          if (flash) {
+            flash.style.opacity = '1';
+            setTimeout(() => flash.style.opacity = '0', 80);
+          }
+
+          if (state.playerHp <= 0) {
+            state.playerHp = state.maxHp;
+            state.score = 0;
+            loadStage(0);
+            camera.position.set(0, 2.0, 36);
+          }
+          updateHUD();
+          continue;
+        }
+      }
+    }
+
+    scene.render();
   });
 
-  window.addEventListener('resize', () => {
-    engine.resize();
-  });
+  window.addEventListener('resize', () => engine.resize());
 });
